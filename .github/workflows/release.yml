@@ -38,8 +38,8 @@ jobs:
         TAG_NAME: ${{ env.RELEASE_TAG }}
       run: |
         if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-          echo "Tag already exists: $TAG_NAME"
-          exit 1
+          echo "Tag already exists: $TAG_NAME, skip creating tag."
+          exit 0
         fi
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -51,10 +51,21 @@ jobs:
         chmod +x gradlew
         ./gradlew --no-daemon assembleDebug
 
+    - name: Prepare Release Asset
+      run: |
+        mkdir -p release
+        APK_SOURCE="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+        if [ -z "$APK_SOURCE" ]; then
+          echo "No APK found under app/build/outputs/apk/debug"
+          exit 1
+        fi
+        cp "$APK_SOURCE" "release/知期.apk"
+        ls -la release
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ env.RELEASE_TAG }}
         name: 知期 ${{ env.RELEASE_TAG }}
         generate_release_notes: true
-        files: app/build/outputs/apk/debug/知期.apk
+        files: release/知期.apk
