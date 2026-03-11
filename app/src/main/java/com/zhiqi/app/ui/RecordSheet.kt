@@ -1,10 +1,14 @@
 package com.zhiqi.app.ui
 
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
+import android.graphics.Color as AndroidColor
+import android.graphics.drawable.ColorDrawable
+import android.widget.NumberPicker
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,17 +18,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.LocalHospital
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -37,11 +38,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.viewinterop.AndroidView
 import com.zhiqi.app.data.RecordEntity
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -49,18 +59,33 @@ import java.util.Date
 import java.util.Locale
 
 private data class ProtectionUi(
-    val name: String,
-    val icon: ImageVector,
-    val color: Color
+    val value: String,
+    val label: String,
+    val glyph: ProtectionGlyph
 )
 
+private enum class ProtectionGlyph {
+    NONE,
+    CONDOM,
+    WITHDRAWAL,
+    NO_EJACULATION,
+    EMERGENCY,
+    SHORT_TERM,
+    LONG_TERM,
+    IUD,
+    OTHER
+}
+
 private val protectionOptions = listOf(
-    ProtectionUi("避孕套", Icons.Filled.Shield, Color(0xFFE08DB4)),
-    ProtectionUi("短效避孕药", Icons.Filled.LocalHospital, Color(0xFFC47CA2)),
-    ProtectionUi("长效避孕", Icons.Filled.Security, Color(0xFFF0A35E)),
-    ProtectionUi("体外", Icons.Filled.DirectionsRun, Color(0xFFE39A32)),
-    ProtectionUi("无防护", Icons.Filled.WarningAmber, Color(0xFFE05B66)),
-    ProtectionUi("其他", Icons.Filled.Edit, Color(0xFF7C8798))
+    ProtectionUi("无措施", "无措施", ProtectionGlyph.NONE),
+    ProtectionUi("避孕套", "避孕套", ProtectionGlyph.CONDOM),
+    ProtectionUi("体外排", "体外排精", ProtectionGlyph.WITHDRAWAL),
+    ProtectionUi("未射精", "未射精", ProtectionGlyph.NO_EJACULATION),
+    ProtectionUi("紧急避", "紧急避孕药", ProtectionGlyph.EMERGENCY),
+    ProtectionUi("短效避", "短效避孕药", ProtectionGlyph.SHORT_TERM),
+    ProtectionUi("长效避", "长效避孕药", ProtectionGlyph.LONG_TERM),
+    ProtectionUi("节育环", "节育环", ProtectionGlyph.IUD),
+    ProtectionUi("其他措", "其他措施", ProtectionGlyph.OTHER)
 )
 
 @Composable
@@ -74,14 +99,32 @@ fun RecordSheet(
     val context = LocalContext.current
     var type by remember { mutableStateOf(initialRecord?.type ?: if (entryContext == "爱爱") "同房" else null) }
     var protections by remember {
-        mutableStateOf(initialRecord?.protections?.split("|")?.filter { it.isNotBlank() }?.toSet() ?: emptySet())
+        mutableStateOf(
+            initialRecord
+                ?.protections
+                ?.split("|")
+                ?.map { normalizeProtectionName(it) }
+                ?.filter { it.isNotBlank() }
+                ?.toSet()
+                ?: emptySet()
+        )
     }
     var otherProtection by remember { mutableStateOf(initialRecord?.otherProtection ?: "") }
     var note by remember { mutableStateOf(initialRecord?.note ?: "") }
     var error by remember { mutableStateOf<String?>(null) }
-    var selectedTimeMillis by remember { mutableStateOf(initialRecord?.timeMillis ?: initialTimeMillis) }
+    val initialSelectedTimeMillis = remember(initialRecord?.id, initialTimeMillis, entryContext) {
+        when {
+            initialRecord != null -> initialRecord.timeMillis
+            entryContext == "爱爱" -> System.currentTimeMillis()
+            else -> initialTimeMillis
+        }
+    }
+    var selectedTimeMillis by remember(initialSelectedTimeMillis) {
+        mutableStateOf(initialSelectedTimeMillis)
+    }
     val scrollState = rememberScrollState()
     val entryTitle = entryContext?.let { metricTitle(it) }
+    val isLoveEntry = entryContext == "爱爱" || type == "同房"
 
     val title = when {
         initialRecord != null -> "编辑记录"
@@ -111,7 +154,7 @@ fun RecordSheet(
                 protections = protections.joinToString("|"),
                 otherProtection = otherProtection.ifBlank { null },
                 timeMillis = selectedTimeMillis,
-                note = note.ifBlank { null }
+                note = if (isLoveEntry) null else note.ifBlank { null }
             )
         )
     }
@@ -161,23 +204,27 @@ fun RecordSheet(
         SectionCard(
             highlighted = entryContext == "流量" || entryContext == "颜色" || entryContext == "痛经" || entryContext == "导管"
         ) {
-            Text("措施", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
-            Spacer(modifier = Modifier.height(10.dp))
-            protectionOptions.chunked(3).forEach { rowItems ->
-                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    rowItems.forEach { item ->
-                        ProtectionCircleButton(
-                            item = item,
-                            selected = protections.contains(item.name),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            protections = if (protections.contains(item.name)) protections - item.name else protections + item.name
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text("措施", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
+                Icon(
+                    imageVector = Icons.Filled.Info,
+                    contentDescription = "措施说明",
+                    tint = ZhiQiTokens.TextMuted,
+                    modifier = Modifier.size(18.dp)
+                )
             }
-            if (protections.contains("其他")) {
+            Spacer(modifier = Modifier.height(10.dp))
+            ProtectionOptionGrid(
+                options = protectionOptions,
+                selected = protections,
+                onToggle = { value ->
+                    protections = if (protections.contains(value)) protections - value else protections + value
+                }
+            )
+            if (protections.contains("其他措")) {
                 OutlinedTextField(
                     value = otherProtection,
                     onValueChange = { if (it.length <= 10) otherProtection = it },
@@ -191,61 +238,220 @@ fun RecordSheet(
         SectionCard(highlighted = entryContext == "记录具体时间") {
             Text("时间", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
             Spacer(modifier = Modifier.height(10.dp))
-            DateTimeCard(
-                selectedTimeMillis = selectedTimeMillis,
-                onPick = {
-                    val cal = Calendar.getInstance().apply { timeInMillis = selectedTimeMillis }
-                    DatePickerDialog(
-                        context,
-                        { _, year, month, day ->
-                            cal.set(Calendar.YEAR, year)
-                            cal.set(Calendar.MONTH, month)
-                            cal.set(Calendar.DAY_OF_MONTH, day)
-                            TimePickerDialog(
-                                context,
-                                { _, hour, minute ->
-                                    cal.set(Calendar.HOUR_OF_DAY, hour)
-                                    cal.set(Calendar.MINUTE, minute)
-                                    cal.set(Calendar.MILLISECOND, 0)
-                                    selectedTimeMillis = cal.timeInMillis
-                                },
-                                cal.get(Calendar.HOUR_OF_DAY),
-                                cal.get(Calendar.MINUTE),
-                                true
-                            ).show()
-                        },
-                        cal.get(Calendar.YEAR),
-                        cal.get(Calendar.MONTH),
-                        cal.get(Calendar.DAY_OF_MONTH)
-                    ).show()
-                }
-            )
+            if (isLoveEntry) {
+                TimeWheelPicker(
+                    selectedTimeMillis = selectedTimeMillis,
+                    onTimeChange = { hour, minute ->
+                        val cal = Calendar.getInstance().apply {
+                            timeInMillis = selectedTimeMillis
+                            set(Calendar.HOUR_OF_DAY, hour)
+                            set(Calendar.MINUTE, minute)
+                            set(Calendar.SECOND, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }
+                        selectedTimeMillis = cal.timeInMillis
+                    }
+                )
+            } else {
+                DateTimeCard(
+                    selectedTimeMillis = selectedTimeMillis,
+                    onPick = {
+                        val cal = Calendar.getInstance().apply { timeInMillis = selectedTimeMillis }
+                        android.app.DatePickerDialog(
+                            context,
+                            { _, year, month, day ->
+                                cal.set(Calendar.YEAR, year)
+                                cal.set(Calendar.MONTH, month)
+                                cal.set(Calendar.DAY_OF_MONTH, day)
+                                android.app.TimePickerDialog(
+                                    context,
+                                    { _, hour, minute ->
+                                        cal.set(Calendar.HOUR_OF_DAY, hour)
+                                        cal.set(Calendar.MINUTE, minute)
+                                        cal.set(Calendar.MILLISECOND, 0)
+                                        selectedTimeMillis = cal.timeInMillis
+                                    },
+                                    cal.get(Calendar.HOUR_OF_DAY),
+                                    cal.get(Calendar.MINUTE),
+                                    true
+                                ).show()
+                            },
+                            cal.get(Calendar.YEAR),
+                            cal.get(Calendar.MONTH),
+                            cal.get(Calendar.DAY_OF_MONTH)
+                        ).show()
+                    }
+                )
+            }
         }
 
-        SectionCard(highlighted = entryContext == "日记" || entryContext == "心情" || entryContext == "症状") {
-            Text("备注", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
-            Spacer(modifier = Modifier.height(10.dp))
-            OutlinedTextField(
-                value = note,
-                onValueChange = { if (it.length <= 10) note = it },
-                label = {
-                    Text(
-                        when (entryContext) {
-                            "心情" -> "记录一下当前情绪"
-                            "症状" -> "补充身体感受"
-                            else -> "备注（10字内）"
-                        }
-                    )
-                },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
+        if (!isLoveEntry) {
+            SectionCard(highlighted = entryContext == "日记" || entryContext == "心情" || entryContext == "症状") {
+                Text("备注", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { if (it.length <= 10) note = it },
+                    label = {
+                        Text(
+                            when (entryContext) {
+                                "心情" -> "记录一下当前情绪"
+                                "症状" -> "补充身体感受"
+                                else -> "备注（10字内）"
+                            }
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
 
         if (error != null) {
             Text(text = error!!, color = MaterialTheme.colorScheme.error)
         }
 
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ProtectionOptionGrid(
+    options: List<ProtectionUi>,
+    selected: Set<String>,
+    onToggle: (String) -> Unit
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        maxItemsInEachRow = PROTECTION_COLUMNS,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        options.forEach { item ->
+            ProtectionOptionChip(
+                item = item,
+                selected = selected.contains(item.value),
+                onClick = { onToggle(item.value) }
+            )
+        }
+    }
+}
+
+private const val PROTECTION_COLUMNS = 5
+
+@Composable
+private fun TimeWheelPicker(
+    selectedTimeMillis: Long,
+    onTimeChange: (hour: Int, minute: Int) -> Unit
+) {
+    val calendar = remember(selectedTimeMillis) {
+        Calendar.getInstance().apply { timeInMillis = selectedTimeMillis }
+    }
+    val hour = calendar.get(Calendar.HOUR_OF_DAY)
+    val minute = calendar.get(Calendar.MINUTE)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(170.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .background(Color(0xFFEFF0F3), RoundedCornerShape(12.dp))
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TimeWheelColumn(
+                    value = hour,
+                    range = 0..23,
+                    onValueChange = { onTimeChange(it, minute) },
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = ":",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = ZhiQiTokens.TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+                TimeWheelColumn(
+                    value = minute,
+                    range = 0..59,
+                    onValueChange = { onTimeChange(hour, it) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimeWheelColumn(
+    value: Int,
+    range: IntRange,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AndroidView(
+        factory = { context ->
+            NumberPicker(context).apply {
+                descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
+                wrapSelectorWheel = true
+                setBackgroundColor(AndroidColor.TRANSPARENT)
+                stripPickerDecoration(this)
+                setFormatter { number -> "%02d".format(number) }
+                stylePickerText(this)
+            }
+        },
+        modifier = modifier
+            .fillMaxWidth()
+            .height(170.dp),
+        update = { picker ->
+            val safeRange = if (range.first <= range.last) range else value..value
+            if (picker.minValue != safeRange.first || picker.maxValue != safeRange.last) {
+                picker.minValue = safeRange.first
+                picker.maxValue = safeRange.last
+            }
+            val normalized = value.coerceIn(safeRange.first, safeRange.last)
+            if (picker.value != normalized) {
+                picker.value = normalized
+            }
+            picker.setOnValueChangedListener { _, _, newValue ->
+                if (newValue != value) onValueChange(newValue)
+            }
+        },
+    )
+}
+
+private fun stripPickerDecoration(picker: NumberPicker) {
+    runCatching {
+        val dividerField = NumberPicker::class.java.getDeclaredField("mSelectionDivider")
+        dividerField.isAccessible = true
+        dividerField.set(picker, ColorDrawable(AndroidColor.TRANSPARENT))
+    }
+    runCatching {
+        val dividerHeightField = NumberPicker::class.java.getDeclaredField("mSelectionDividerHeight")
+        dividerHeightField.isAccessible = true
+        dividerHeightField.setInt(picker, 0)
+    }
+}
+
+private fun stylePickerText(picker: NumberPicker) {
+    runCatching {
+        val selectorWheelPaintField = NumberPicker::class.java.getDeclaredField("mSelectorWheelPaint")
+        selectorWheelPaintField.isAccessible = true
+        val paint = selectorWheelPaintField.get(picker) as android.graphics.Paint
+        paint.color = AndroidColor.parseColor("#2F2A35")
+        paint.textSize = 58f
     }
 }
 
@@ -328,37 +534,297 @@ private fun TimeToken(
 }
 
 @Composable
-private fun ProtectionCircleButton(
+private fun ProtectionOptionChip(
     item: ProtectionUi,
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val bg = if (selected) item.color.copy(alpha = 0.16f) else ZhiQiTokens.SurfaceSoft
-    val border = if (selected) item.color else ZhiQiTokens.Border
-    val textColor = if (selected) item.color else ZhiQiTokens.TextSecondary
+    val baseTint = ZhiQiTokens.Primary
+    val activeTint = ZhiQiTokens.PrimaryStrong
+    val iconBg = if (selected) ZhiQiTokens.PrimarySoft else ZhiQiTokens.AccentSoft
+    val border = if (selected) activeTint else baseTint.copy(alpha = 0.25f)
+    val iconTint = if (selected) activeTint else baseTint
+    val textColor = if (selected) activeTint else baseTint
 
     Column(
         modifier = modifier
-            .padding(horizontal = 4.dp)
+            .widthIn(min = 62.dp)
             .noRippleClickable(onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(58.dp)
-                .background(bg, CircleShape)
+                .size(56.dp)
+                .background(iconBg, CircleShape)
                 .border(1.dp, border, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(item.icon, contentDescription = item.name, tint = textColor)
+            ProtectionGlyphIcon(
+                glyph = item.glyph,
+                tint = iconTint,
+                modifier = Modifier.size(26.dp)
+            )
+            if (selected) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(18.dp)
+                        .background(Color(0xFF23C98A), CircleShape)
+                        .border(1.dp, Color.White, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = "已选中",
+                        tint = Color.White,
+                        modifier = Modifier.size(11.dp)
+                    )
+                }
+            }
         }
         Text(
-            text = item.name,
+            text = item.label,
             color = textColor,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            textAlign = TextAlign.Center,
+            maxLines = 2
         )
+    }
+}
+
+@Composable
+private fun ProtectionGlyphIcon(
+    glyph: ProtectionGlyph,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = Stroke(
+            width = size.minDimension * 0.1f,
+            cap = StrokeCap.Round,
+            join = StrokeJoin.Round
+        )
+        when (glyph) {
+            ProtectionGlyph.NONE -> {
+                drawRoundRect(
+                    color = tint,
+                    topLeft = Offset(w * 0.24f, h * 0.46f),
+                    size = Size(w * 0.52f, h * 0.34f),
+                    cornerRadius = CornerRadius(w * 0.09f, w * 0.09f),
+                    style = stroke
+                )
+                drawArc(
+                    color = tint,
+                    startAngle = 215f,
+                    sweepAngle = 190f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.24f, h * 0.16f),
+                    size = Size(w * 0.34f, h * 0.36f),
+                    style = stroke
+                )
+                drawCircle(color = tint, radius = w * 0.04f, center = Offset(w * 0.50f, h * 0.60f))
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.50f, h * 0.64f),
+                    end = Offset(w * 0.50f, h * 0.72f),
+                    strokeWidth = stroke.width,
+                    cap = StrokeCap.Round
+                )
+            }
+
+            ProtectionGlyph.CONDOM -> {
+                drawRoundRect(
+                    color = tint,
+                    topLeft = Offset(w * 0.40f, h * 0.14f),
+                    size = Size(w * 0.20f, h * 0.62f),
+                    cornerRadius = CornerRadius(w * 0.12f, w * 0.12f),
+                    style = stroke
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.40f, h * 0.75f),
+                    end = Offset(w * 0.60f, h * 0.75f),
+                    strokeWidth = stroke.width,
+                    cap = StrokeCap.Round
+                )
+            }
+
+            ProtectionGlyph.WITHDRAWAL -> {
+                drawRoundRect(
+                    color = tint,
+                    topLeft = Offset(w * 0.18f, h * 0.40f),
+                    size = Size(w * 0.34f, h * 0.20f),
+                    cornerRadius = CornerRadius(w * 0.06f, w * 0.06f),
+                    style = stroke
+                )
+                val nozzle = Path().apply {
+                    moveTo(w * 0.50f, h * 0.34f)
+                    lineTo(w * 0.78f, h * 0.50f)
+                    lineTo(w * 0.50f, h * 0.66f)
+                    close()
+                }
+                drawPath(path = nozzle, color = tint, style = stroke)
+                drawCircle(color = tint, radius = w * 0.04f, center = Offset(w * 0.83f, h * 0.40f))
+                drawCircle(color = tint, radius = w * 0.03f, center = Offset(w * 0.89f, h * 0.34f))
+            }
+
+            ProtectionGlyph.NO_EJACULATION -> {
+                drawCircle(
+                    color = tint,
+                    radius = w * 0.30f,
+                    center = Offset(w * 0.50f, h * 0.50f),
+                    style = stroke
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.30f, h * 0.70f),
+                    end = Offset(w * 0.70f, h * 0.30f),
+                    strokeWidth = stroke.width,
+                    cap = StrokeCap.Round
+                )
+            }
+
+            ProtectionGlyph.EMERGENCY -> {
+                drawRoundRect(
+                    color = tint,
+                    topLeft = Offset(w * 0.20f, h * 0.30f),
+                    size = Size(w * 0.60f, h * 0.34f),
+                    cornerRadius = CornerRadius(w * 0.16f, w * 0.16f),
+                    style = stroke
+                )
+                val bolt = Path().apply {
+                    moveTo(w * 0.52f, h * 0.24f)
+                    lineTo(w * 0.42f, h * 0.52f)
+                    lineTo(w * 0.56f, h * 0.52f)
+                    lineTo(w * 0.46f, h * 0.78f)
+                }
+                drawPath(path = bolt, color = tint, style = stroke)
+            }
+
+            ProtectionGlyph.SHORT_TERM -> {
+                drawCircle(
+                    color = tint,
+                    radius = w * 0.30f,
+                    center = Offset(w * 0.50f, h * 0.50f),
+                    style = stroke
+                )
+                drawCircle(
+                    color = tint.copy(alpha = 0.6f),
+                    radius = w * 0.40f,
+                    center = Offset(w * 0.50f, h * 0.50f),
+                    style = Stroke(width = stroke.width * 0.75f, cap = StrokeCap.Round)
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.34f, h * 0.50f),
+                    end = Offset(w * 0.66f, h * 0.50f),
+                    strokeWidth = stroke.width,
+                    cap = StrokeCap.Round
+                )
+            }
+
+            ProtectionGlyph.LONG_TERM -> {
+                drawCircle(
+                    color = tint.copy(alpha = 0.75f),
+                    radius = w * 0.32f,
+                    center = Offset(w * 0.50f, h * 0.50f),
+                    style = stroke
+                )
+                drawArc(
+                    color = tint,
+                    startAngle = 28f,
+                    sweepAngle = 128f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.18f, h * 0.18f),
+                    size = Size(w * 0.64f, h * 0.64f),
+                    style = stroke
+                )
+                drawArc(
+                    color = tint,
+                    startAngle = 208f,
+                    sweepAngle = 128f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.18f, h * 0.18f),
+                    size = Size(w * 0.64f, h * 0.64f),
+                    style = stroke
+                )
+            }
+
+            ProtectionGlyph.IUD -> {
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.26f, h * 0.30f),
+                    end = Offset(w * 0.74f, h * 0.30f),
+                    strokeWidth = stroke.width,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.50f, h * 0.30f),
+                    end = Offset(w * 0.50f, h * 0.74f),
+                    strokeWidth = stroke.width,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.50f, h * 0.74f),
+                    end = Offset(w * 0.40f, h * 0.88f),
+                    strokeWidth = stroke.width * 0.8f,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.50f, h * 0.74f),
+                    end = Offset(w * 0.60f, h * 0.88f),
+                    strokeWidth = stroke.width * 0.8f,
+                    cap = StrokeCap.Round
+                )
+            }
+
+            ProtectionGlyph.OTHER -> {
+                drawArc(
+                    color = tint,
+                    startAngle = 180f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.18f, h * 0.22f),
+                    size = Size(w * 0.64f, h * 0.42f),
+                    style = stroke
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.50f, h * 0.43f),
+                    end = Offset(w * 0.50f, h * 0.80f),
+                    strokeWidth = stroke.width,
+                    cap = StrokeCap.Round
+                )
+                drawArc(
+                    color = tint,
+                    startAngle = 0f,
+                    sweepAngle = 170f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.46f, h * 0.70f),
+                    size = Size(w * 0.16f, h * 0.16f),
+                    style = stroke
+                )
+            }
+        }
+    }
+}
+
+private fun normalizeProtectionName(name: String): String {
+    return when (name.trim()) {
+        "无防护", "无措施" -> "无措施"
+        "短效避孕药", "短效避", "短效避孕" -> "短效避"
+        "长效避孕", "长效避孕药", "长效避" -> "长效避"
+        "体外", "体外排精", "体外排" -> "体外排"
+        "紧急避孕药", "紧急避" -> "紧急避"
+        "其他", "其他措施", "其他措" -> "其他措"
+        else -> name.trim()
     }
 }

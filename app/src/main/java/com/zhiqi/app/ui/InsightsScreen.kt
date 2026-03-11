@@ -1,8 +1,11 @@
 package com.zhiqi.app.ui
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -44,7 +49,6 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,21 +56,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.tween
 import com.zhiqi.app.data.DailyIndicatorEntity
 import com.zhiqi.app.data.DailyIndicatorRepository
 import com.zhiqi.app.data.RecordEntity
@@ -76,13 +79,15 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import kotlin.math.abs
 
 private const val PERIOD_STATUS_KEY = "月经状态"
 private const val PERIOD_STARTED = "start"
 private const val PERIOD_ENDED = "end"
 private const val MAX_PERIOD_DAYS = 10
-private const val OVERDUE_FREEZE_DAYS = 7
+private const val CALENDAR_PAGER_TOTAL_PAGES = 20_000
+private const val CALENDAR_PAGER_START_PAGE = CALENDAR_PAGER_TOTAL_PAGES / 2
+private const val CALENDAR_ROW_HEIGHT_DP = 52
+private const val CALENDAR_BODY_EXTRA_DP = 70
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,7 +105,6 @@ fun InsightsScreen(
     val cycleManager = remember { CycleSettingsManager(context) }
     val records by repository.records().collectAsState(initial = emptyList())
     val allIndicators by indicatorRepository.allIndicators().collectAsState(initial = emptyList())
-    var monthOffset by remember { mutableIntStateOf(0) }
     var showAnalysisSheet by remember { mutableStateOf(false) }
     var selectedDateMillis by remember(cycleSettingsVersion) { mutableLongStateOf(startOfDay(System.currentTimeMillis())) }
     var periodActionFeedback by remember { mutableStateOf<String?>(null) }
@@ -171,14 +175,12 @@ fun InsightsScreen(
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 CalendarPanel(
-                    monthOffset = monthOffset,
                     monthStateProvider = monthStateProvider,
                     selectedDateMillis = selectedDateMillis,
                     onBackToToday = {
                         selectedDateMillis = startOfDay(System.currentTimeMillis())
                         periodActionFeedback = null
                     },
-                    onShiftMonths = { delta -> monthOffset += delta },
                     onSelectDate = {
                         selectedDateMillis = it
                         periodActionFeedback = null
@@ -293,119 +295,32 @@ fun InsightsScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CalendarPanel(
-    monthOffset: Int,
     monthStateProvider: (Int) -> CycleMonthState,
     selectedDateMillis: Long,
     onBackToToday: () -> Unit,
-    onShiftMonths: (Int) -> Unit,
     onSelectDate: (Long) -> Unit
 ) {
-    val fallbackSwitchOffsetPx = with(LocalDensity.current) { 96.dp.toPx() }
-    val tinyDragIgnorePx = with(LocalDensity.current) { 6.dp.toPx() }
-    var dragTarget by remember { mutableFloatStateOf(0f) }
-    var panelWidthPx by remember { mutableFloatStateOf(0f) }
-    var isDragging by remember { mutableStateOf(false) }
-    var previewShift by remember { mutableIntStateOf(0) }
-    var pendingCommitShift by remember { mutableIntStateOf(0) }
-    var stagedCommitShift by remember { mutableIntStateOf(0) }
-    var settleTarget by remember { mutableFloatStateOf(0f) }
-    var snapAfterCommit by remember { mutableStateOf(false) }
-    val animatedDragOffset by animateFloatAsState(
-        targetValue = if (isDragging) dragTarget else settleTarget,
-        animationSpec = when {
-            isDragging -> snap()
-            snapAfterCommit -> snap()
-            else -> tween(durationMillis = 170, easing = LinearEasing)
-        },
-        finishedListener = {
-            if (isDragging) return@animateFloatAsState
-            if (pendingCommitShift != 0) {
-                stagedCommitShift = pendingCommitShift
-                pendingCommitShift = 0
-                previewShift = stagedCommitShift
-                snapAfterCommit = true
-                settleTarget = 0f
-                dragTarget = 0f
-            } else if (snapAfterCommit) {
-                if (stagedCommitShift != 0) {
-                    onShiftMonths(stagedCommitShift)
-                    stagedCommitShift = 0
-                    previewShift = 0
-                }
-                snapAfterCommit = false
-            }
-        },
-        label = "calendar-drag-offset"
+    val pagerState = rememberPagerState(
+        initialPage = CALENDAR_PAGER_START_PAGE,
+        pageCount = { CALENDAR_PAGER_TOTAL_PAGES }
     )
-    val activeWidth = panelWidthPx.takeIf { it > 0f } ?: fallbackSwitchOffsetPx
-    val switchThresholdPx = (activeWidth * 0.18f).coerceAtLeast(tinyDragIgnorePx)
-    val headerState = remember(monthOffset, monthStateProvider) {
-        monthStateProvider(monthOffset)
+    val currentOffset = pagerState.currentPage - CALENDAR_PAGER_START_PAGE
+    val headerState = remember(currentOffset, monthStateProvider) {
+        monthStateProvider(currentOffset)
     }
-    val displayMonthOffset = monthOffset + previewShift
-    val monthState = remember(displayMonthOffset, monthStateProvider) {
-        monthStateProvider(displayMonthOffset)
-    }
-    val prevMonthState = remember(displayMonthOffset, monthStateProvider) {
-        monthStateProvider(displayMonthOffset - 1)
-    }
-    val nextMonthState = remember(displayMonthOffset, monthStateProvider) {
-        monthStateProvider(displayMonthOffset + 1)
-    }
+    val pagerBodyHeight by animateDpAsState(
+        targetValue = calendarBodyHeightByRows(headerState.weekRows),
+        animationSpec = tween(durationMillis = 140),
+        label = "calendar-body-height"
+    )
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .pointerInput(activeWidth, onShiftMonths) {
-                detectHorizontalDragGestures(
-                    onDragStart = {
-                        if (pendingCommitShift != 0) return@detectHorizontalDragGestures
-                        snapAfterCommit = false
-                        stagedCommitShift = 0
-                        isDragging = true
-                        settleTarget = dragTarget
-                    },
-                    onHorizontalDrag = { _, dragAmount ->
-                        if (pendingCommitShift != 0) return@detectHorizontalDragGestures
-                        dragTarget += dragAmount
-                        if (activeWidth > 1f) {
-                            while (dragTarget >= activeWidth) {
-                                previewShift -= 1
-                                dragTarget -= activeWidth
-                            }
-                            while (dragTarget <= -activeWidth) {
-                                previewShift += 1
-                                dragTarget += activeWidth
-                            }
-                        }
-                    },
-                    onDragEnd = {
-                        val finalOffset = dragTarget
-                        isDragging = false
-                        if (abs(finalOffset) <= tinyDragIgnorePx) {
-                            pendingCommitShift = previewShift
-                            settleTarget = 0f
-                        } else if (finalOffset > switchThresholdPx) {
-                            pendingCommitShift = previewShift - 1
-                            settleTarget = activeWidth
-                        } else if (finalOffset < -switchThresholdPx) {
-                            pendingCommitShift = previewShift + 1
-                            settleTarget = -activeWidth
-                        } else {
-                            pendingCommitShift = previewShift
-                            settleTarget = 0f
-                        }
-                    },
-                    onDragCancel = {
-                        isDragging = false
-                        pendingCommitShift = previewShift
-                        settleTarget = 0f
-                    }
-                )
-            }
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -415,36 +330,20 @@ private fun CalendarPanel(
             onBackToToday = onBackToToday
         )
 
-        Box(
+        HorizontalPager(
+            state = pagerState,
+            verticalAlignment = Alignment.Top,
             modifier = Modifier
                 .fillMaxWidth()
-                .clipToBounds()
-                .onSizeChanged { panelWidthPx = it.width.toFloat() }
-        ) {
-            if (animatedDragOffset > 0.5f) {
-                CalendarMonthBody(
-                    state = prevMonthState,
-                    onSelectDate = onSelectDate,
-                    modifier = Modifier.graphicsLayer {
-                        translationX = animatedDragOffset - activeWidth
-                    }
-                )
-            } else if (animatedDragOffset < -0.5f) {
-                CalendarMonthBody(
-                    state = nextMonthState,
-                    onSelectDate = onSelectDate,
-                    modifier = Modifier.graphicsLayer {
-                        translationX = animatedDragOffset + activeWidth
-                    }
-                )
+                .height(pagerBodyHeight)
+        ) { page ->
+            val monthOffset = page - CALENDAR_PAGER_START_PAGE
+            val monthState = remember(monthOffset, monthStateProvider) {
+                monthStateProvider(monthOffset)
             }
-
             CalendarMonthBody(
                 state = monthState,
-                onSelectDate = onSelectDate,
-                modifier = Modifier.graphicsLayer {
-                    translationX = animatedDragOffset
-                }
+                onSelectDate = onSelectDate
             )
         }
     }
@@ -845,13 +744,13 @@ private fun RecordEntryList(
     loveRecord: RecordEntity?
 ) {
     val items = listOf(
-        RecordEntryItem(title = "流量", metricKey = "流量", icon = Icons.Filled.InvertColors),
-        RecordEntryItem(title = "疼痛", metricKey = "症状", icon = Icons.Filled.HealthAndSafety),
-        RecordEntryItem(title = "情绪", metricKey = "心情", icon = Icons.Filled.Mood),
-        RecordEntryItem(title = "睡眠", metricKey = "好习惯", icon = Icons.Filled.Hotel),
-        RecordEntryItem(title = "白带", metricKey = "白带", icon = Icons.Filled.Thermostat),
-        RecordEntryItem(title = "药物", metricKey = "计划", icon = Icons.Filled.LocalHospital),
-        RecordEntryItem(title = "性行为", metricKey = "爱爱", icon = Icons.Filled.Favorite)
+        RecordEntryItem(title = "流量", metricKey = "流量", glyph = RecordEntryGlyph.FLOW, accentColor = ZhiQiTokens.Primary),
+        RecordEntryItem(title = "疼痛", metricKey = "症状", glyph = RecordEntryGlyph.PAIN, accentColor = ZhiQiTokens.PrimaryStrong),
+        RecordEntryItem(title = "情绪", metricKey = "心情", glyph = RecordEntryGlyph.MOOD, accentColor = ZhiQiTokens.Primary),
+        RecordEntryItem(title = "睡眠", metricKey = "好习惯", glyph = RecordEntryGlyph.SLEEP, accentColor = ZhiQiTokens.PrimaryStrong),
+        RecordEntryItem(title = "白带", metricKey = "白带", glyph = RecordEntryGlyph.DISCHARGE, accentColor = ZhiQiTokens.Primary),
+        RecordEntryItem(title = "药物", metricKey = "计划", glyph = RecordEntryGlyph.MEDICINE, accentColor = ZhiQiTokens.PrimaryStrong),
+        RecordEntryItem(title = "性行为", metricKey = "爱爱", glyph = RecordEntryGlyph.LOVE, accentColor = ZhiQiTokens.Primary)
     )
     Column(
         modifier = Modifier
@@ -866,14 +765,23 @@ private fun RecordEntryList(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f, fill = false),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .background(ZhiQiTokens.AccentSoft, CircleShape),
+                            .background(item.accentColor.copy(alpha = 0.14f), CircleShape)
+                            .border(1.dp, item.accentColor.copy(alpha = 0.22f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(item.icon, contentDescription = item.title, tint = ZhiQiTokens.PrimaryStrong)
+                        RecordEntryGlyphIcon(
+                            glyph = item.glyph,
+                            tint = item.accentColor,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                     Column {
                         Text(item.title, color = ZhiQiTokens.TextPrimary, style = MaterialTheme.typography.titleMedium)
@@ -882,10 +790,18 @@ private fun RecordEntryList(
                             Text(
                                 "已记录 · ${loveRecord.protections.replace("|", " / ")}",
                                 color = ZhiQiTokens.TextMuted,
-                                style = MaterialTheme.typography.bodySmall
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         } else if (saved != null) {
-                            Text(saved.displayLabel, color = ZhiQiTokens.TextMuted, style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                saved.displayLabel,
+                                color = ZhiQiTokens.TextMuted,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
@@ -915,8 +831,160 @@ private fun RecordEntryList(
 private data class RecordEntryItem(
     val title: String,
     val metricKey: String,
-    val icon: ImageVector
+    val glyph: RecordEntryGlyph,
+    val accentColor: Color
 )
+
+private enum class RecordEntryGlyph {
+    FLOW,
+    PAIN,
+    MOOD,
+    SLEEP,
+    DISCHARGE,
+    MEDICINE,
+    LOVE
+}
+
+@Composable
+private fun RecordEntryGlyphIcon(
+    glyph: RecordEntryGlyph,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = Stroke(
+            width = size.minDimension * 0.1f,
+            cap = StrokeCap.Round,
+            join = StrokeJoin.Round
+        )
+        when (glyph) {
+            RecordEntryGlyph.FLOW -> {
+                val drop = Path().apply {
+                    moveTo(w * 0.50f, h * 0.08f)
+                    cubicTo(w * 0.68f, h * 0.28f, w * 0.82f, h * 0.46f, w * 0.50f, h * 0.88f)
+                    cubicTo(w * 0.18f, h * 0.46f, w * 0.32f, h * 0.28f, w * 0.50f, h * 0.08f)
+                    close()
+                }
+                drawPath(drop, tint, style = stroke)
+            }
+
+            RecordEntryGlyph.PAIN -> {
+                drawCircle(color = tint, radius = w * 0.36f, center = Offset(w * 0.5f, h * 0.5f), style = stroke)
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.35f, h * 0.5f),
+                    end = Offset(w * 0.65f, h * 0.5f),
+                    strokeWidth = stroke.width,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.5f, h * 0.35f),
+                    end = Offset(w * 0.5f, h * 0.65f),
+                    strokeWidth = stroke.width,
+                    cap = StrokeCap.Round
+                )
+            }
+
+            RecordEntryGlyph.MOOD -> {
+                drawCircle(color = tint, radius = w * 0.36f, center = Offset(w * 0.5f, h * 0.5f), style = stroke)
+                drawCircle(color = tint, radius = w * 0.04f, center = Offset(w * 0.40f, h * 0.42f))
+                drawCircle(color = tint, radius = w * 0.04f, center = Offset(w * 0.60f, h * 0.42f))
+                drawArc(
+                    color = tint,
+                    startAngle = 20f,
+                    sweepAngle = 140f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.32f, h * 0.38f),
+                    size = Size(w * 0.36f, h * 0.36f),
+                    style = Stroke(width = stroke.width * 0.9f, cap = StrokeCap.Round)
+                )
+            }
+
+            RecordEntryGlyph.SLEEP -> {
+                drawRoundRect(
+                    color = tint,
+                    topLeft = Offset(w * 0.14f, h * 0.48f),
+                    size = Size(w * 0.72f, h * 0.26f),
+                    cornerRadius = CornerRadius(w * 0.06f, w * 0.06f),
+                    style = stroke
+                )
+                drawRoundRect(
+                    color = tint,
+                    topLeft = Offset(w * 0.18f, h * 0.34f),
+                    size = Size(w * 0.22f, h * 0.15f),
+                    cornerRadius = CornerRadius(w * 0.04f, w * 0.04f),
+                    style = stroke
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.14f, h * 0.74f),
+                    end = Offset(w * 0.14f, h * 0.88f),
+                    strokeWidth = stroke.width * 0.85f,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.86f, h * 0.74f),
+                    end = Offset(w * 0.86f, h * 0.88f),
+                    strokeWidth = stroke.width * 0.85f,
+                    cap = StrokeCap.Round
+                )
+            }
+
+            RecordEntryGlyph.DISCHARGE -> {
+                drawArc(
+                    color = tint,
+                    startAngle = 200f,
+                    sweepAngle = 140f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.18f, h * 0.28f),
+                    size = Size(w * 0.64f, h * 0.44f),
+                    style = stroke
+                )
+                drawArc(
+                    color = tint,
+                    startAngle = 20f,
+                    sweepAngle = 140f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.18f, h * 0.42f),
+                    size = Size(w * 0.64f, h * 0.36f),
+                    style = Stroke(width = stroke.width * 0.85f, cap = StrokeCap.Round)
+                )
+            }
+
+            RecordEntryGlyph.MEDICINE -> {
+                drawRoundRect(
+                    color = tint,
+                    topLeft = Offset(w * 0.18f, h * 0.34f),
+                    size = Size(w * 0.64f, h * 0.32f),
+                    cornerRadius = CornerRadius(w * 0.16f, w * 0.16f),
+                    style = stroke
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(w * 0.50f, h * 0.34f),
+                    end = Offset(w * 0.50f, h * 0.66f),
+                    strokeWidth = stroke.width * 0.9f,
+                    cap = StrokeCap.Round
+                )
+            }
+
+            RecordEntryGlyph.LOVE -> {
+                val heart = Path().apply {
+                    moveTo(w * 0.50f, h * 0.78f)
+                    cubicTo(w * 0.08f, h * 0.50f, w * 0.18f, h * 0.20f, w * 0.40f, h * 0.30f)
+                    cubicTo(w * 0.47f, h * 0.34f, w * 0.53f, h * 0.34f, w * 0.60f, h * 0.30f)
+                    cubicTo(w * 0.82f, h * 0.20f, w * 0.92f, h * 0.50f, w * 0.50f, h * 0.78f)
+                    close()
+                }
+                drawPath(heart, tint, style = stroke)
+            }
+        }
+    }
+}
 private data class LegendItem(val label: String, val color: Color)
 private data class CycleInsight(
     val summaryTitle: String,
@@ -930,7 +998,8 @@ private data class CycleInsight(
 private data class CycleSegment(val label: String, val color: Color, val days: Int)
 private data class CycleMonthState(
     val title: String,
-    val days: List<CycleCalendarDay>
+    val days: List<CycleCalendarDay>,
+    val weekRows: Int
 )
 private data class CycleCalendarDay(
     val dateMillis: Long,
@@ -1159,8 +1228,15 @@ private fun buildCycleMonthState(
         days += CycleCalendarDay(0L, 0, false, false, true, false, PhaseState.NONE, PeriodMarker.NONE)
     }
 
-    return CycleMonthState(title = title, days = days)
+    return CycleMonthState(
+        title = title,
+        days = days,
+        weekRows = (days.size / 7).coerceAtLeast(4)
+    )
 }
+
+private fun calendarBodyHeightByRows(weekRows: Int) =
+    (weekRows.coerceIn(4, 6) * CALENDAR_ROW_HEIGHT_DP + CALENDAR_BODY_EXTRA_DP).dp
 
 private fun buildPeriodStatusUi(
     cycleManager: CycleSettingsManager,
@@ -1288,29 +1364,17 @@ private fun buildPredictedPeriodRanges(
 ): List<ActualPeriodRange> {
     if (anchorStartMillis <= 0L) return emptyList()
     val dayMillis = 24L * 60L * 60L * 1000L
+    val safeCycleLength = cycleLength.coerceAtLeast(21)
     val safePeriodLength = periodLength.coerceIn(1, MAX_PERIOD_DAYS)
-    val expectedNextStart = anchorStartMillis + cycleLength * dayMillis
-    val overdueDays = ((todayStart - expectedNextStart) / dayMillis).toInt()
+    var nextStart = anchorStartMillis + safeCycleLength * dayMillis
 
-    // Practical rule: when overdue is obvious, keep the original expected window
-    // and one pending window from today, so historical month review and current month both remain visible.
-    if (overdueDays > OVERDUE_FREEZE_DAYS) {
-        val historicalRange = ActualPeriodRange(
-            startMillis = expectedNextStart,
-            endMillis = expectedNextStart + (safePeriodLength - 1L) * dayMillis
-        )
-        val pendingStart = todayStart
-        val pendingRange = ActualPeriodRange(
-            startMillis = pendingStart,
-            endMillis = pendingStart + (safePeriodLength - 1L) * dayMillis
-        )
-        return listOf(historicalRange, pendingRange)
-            .distinctBy { it.startMillis }
-            .sortedBy { it.startMillis }
+    // Keep stepping forward until we reach a range that is not fully behind today.
+    while (nextStart + (safePeriodLength - 1L) * dayMillis < todayStart) {
+        nextStart += safeCycleLength * dayMillis
     }
 
-    return (1..3).map { index ->
-        val start = anchorStartMillis + index * cycleLength * dayMillis
+    return (0..18).map { index ->
+        val start = nextStart + index * safeCycleLength * dayMillis
         ActualPeriodRange(
             startMillis = start,
             endMillis = start + (safePeriodLength - 1L) * dayMillis

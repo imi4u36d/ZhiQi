@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Favorite
@@ -299,9 +300,7 @@ private fun HomeCycleRingCard(
             val ringSize = maxWidth.coerceAtMost(352.dp).coerceAtLeast(286.dp)
             val ringStrokeDp = (ringSize.value * 0.085f).dp.coerceIn(24.dp, 30.dp)
             val centerSize = (ringSize.value * 0.67f).dp
-            val todayTopPadding = (ringSize.value * 0.028f).dp
-            val todayBadgeSize = (ringSize.value * 0.08f).dp.coerceIn(24.dp, 30.dp)
-            val todayIconSize = (todayBadgeSize.value * 0.57f).dp
+            val todayMarkerTop = (ringStrokeDp * 0.58f + 4.dp).coerceIn(14.dp, 24.dp)
             val dayCountFontSize = if (ringSize < 320.dp) 58.sp else 64.sp
             val dayCountLineHeight = if (ringSize < 320.dp) 58.sp else 64.sp
 
@@ -340,7 +339,7 @@ private fun HomeCycleRingCard(
                     )
                 }
 
-                Column(
+                Box(
                     modifier = Modifier
                         .size(centerSize)
                         .shadow(
@@ -351,100 +350,94 @@ private fun HomeCycleRingCard(
                         )
                         .background(Color(0xFFFDFBFE), CircleShape)
                         .border(1.dp, Color(0x26DCCEE0), CircleShape)
-                        .padding(horizontal = 16.dp, vertical = 20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                        .padding(horizontal = 16.dp, vertical = 20.dp)
                 ) {
-                    Text(
-                        text = "下次月经",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = Color(0xFF64577A),
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.78f)
-                            .padding(vertical = 8.dp)
-                            .height(1.dp)
-                            .background(Color(0x22A99CB8))
-                    )
-
-                    if (overview.configured) {
-                        val delayDays = abs(overview.daysToNext)
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                text = if (overview.daysToNext >= 0) "还有" else "已推迟",
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = Color(0xFF6A5F7E)
-                            )
-                            Text(
-                                text = delayDays.toString(),
-                                fontSize = dayCountFontSize,
-                                lineHeight = dayCountLineHeight,
-                                color = Color(0xFF5E4C7B),
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "天",
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = Color(0xFF6A5F7E)
-                            )
-                        }
-
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "下次月经",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = Color(0xFF64577A),
+                            fontWeight = FontWeight.SemiBold
+                        )
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(0.84f)
+                                .fillMaxWidth(0.78f)
                                 .padding(vertical = 8.dp)
                                 .height(1.dp)
-                                .background(Color(0x1AA99CB8))
+                                .background(Color(0x22A99CB8))
                         )
 
-                        Text(
-                            text = "预计：${formatMonthDay(overview.expectedStartMillis)}",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Color(0xFF7A6E8E)
-                        )
-                    } else {
-                        Text(
-                            text = "请先完成周期设置",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color(0xFF6D6380)
-                        )
-                        Text(
-                            text = "设置后可自动生成提醒",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF9288A3)
-                        )
+                        if (overview.configured) {
+                            val delayDays = abs(overview.daysToNext)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = if (overview.daysToNext >= 0) "还有" else "已推迟",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = Color(0xFF6A5F7E)
+                                )
+                                Text(
+                                    text = delayDays.toString(),
+                                    fontSize = dayCountFontSize,
+                                    lineHeight = dayCountLineHeight,
+                                    color = Color(0xFF5E4C7B),
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "天",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = Color(0xFF6A5F7E)
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.84f)
+                                    .padding(vertical = 8.dp)
+                                    .height(1.dp)
+                                    .background(Color(0x1AA99CB8))
+                            )
+
+                            Text(
+                                text = "预计：${formatMonthDay(overview.expectedStartMillis)}",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = Color(0xFF7A6E8E)
+                            )
+                        } else {
+                            Text(
+                                text = "请先完成周期设置",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color(0xFF6D6380)
+                            )
+                            Text(
+                                text = "设置后可自动生成提醒",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color(0xFF9288A3)
+                            )
+                        }
                     }
                 }
 
-                Column(
+                Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = todayTopPadding),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                        .padding(top = todayMarkerTop)
+                        .size(20.dp)
+                        .background(Color(0xFFFDFBFE), CircleShape)
+                        .border(1.dp, Color(0x26DCCEE0), CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(todayBadgeSize)
-                            .background(Color.White, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.InvertColors,
-                            contentDescription = "今天",
-                            tint = Color(0xFFE57EA8),
-                            modifier = Modifier.size(todayIconSize)
-                        )
-                    }
-                    Text(
-                        text = "今天",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF6D6180)
+                    Icon(
+                        imageVector = Icons.Filled.ArrowDropUp,
+                        contentDescription = "今天位置",
+                        tint = Color(0xFF7A6E8E),
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
@@ -1386,11 +1379,11 @@ private fun protectionRiskFactor(protectionsRaw: String): Double {
     val factors = protections.mapNotNull { protection ->
         when (protection) {
             "避孕套" -> 0.13
-            "短效避孕药" -> 0.08
-            "长效避孕", "长效避孕药", "节育环" -> 0.02
-            "紧急避孕药" -> 0.18
-            "体外", "体外排精", "未射精" -> 0.45
-            "其他" -> 0.65
+            "短效避", "短效避孕药" -> 0.08
+            "长效避", "长效避孕", "长效避孕药", "节育环" -> 0.02
+            "紧急避", "紧急避孕药" -> 0.18
+            "体外排", "体外", "体外排精", "未射精" -> 0.45
+            "其他措", "其他" -> 0.65
             else -> null
         }
     }

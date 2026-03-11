@@ -50,7 +50,7 @@ fun FilterScreen(
 
             Column(modifier = Modifier.glassCard().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("防护措施")
-                listOf("避孕套", "短效避孕药", "长效避孕", "体外", "无防护").forEach { item ->
+                listOf("无措施", "避孕套", "体外排", "未射精", "紧急避", "短效避", "长效避", "节育环", "其他措").forEach { item ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = filterProtection.contains(item), onCheckedChange = { checked ->
                             filterProtection = if (checked) filterProtection + item else filterProtection - item
