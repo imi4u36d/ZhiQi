@@ -1,5 +1,4 @@
 .codex
-.gradle
 app/build
 build
 gradle.properties
