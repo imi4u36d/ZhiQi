@@ -78,6 +78,10 @@ private const val MAX_PERIOD_DAYS = 10
 private const val RING_START_ANGLE = 145f
 private const val RING_GAP_ANGLE = 0f
 private const val TODAY_ANCHOR_ANGLE = 270f
+private val HOME_RING_PERIOD_COLOR = Color(0xFFF07AA8)
+private val HOME_RING_FOLLICULAR_COLOR = Color(0xFFF4C1D5)
+private val HOME_RING_FERTILE_COLOR = Color(0xFFBE92ED)
+private val HOME_RING_LUTEAL_COLOR = Color(0xFFD7B44A)
 
 private enum class HomePeriodAction {
     START,
@@ -130,6 +134,11 @@ private data class HomeWeekDayUi(
     val marker: HomeDayMarker
 )
 
+private data class HomePeriodReminder(
+    val daysToNext: Int,
+    val text: String
+)
+
 @Composable
 fun HomeScreen(
     repository: RecordRepository,
@@ -150,6 +159,7 @@ fun HomeScreen(
         .collectAsState(initial = emptyList())
 
     val cycleManager = remember { CycleSettingsManager(context) }
+    val reminderPrefs = remember { ReminderPrefsManager(context) }
     val cycleTip = remember(cycleSettingsVersion, records, allIndicators) {
         buildCycleTip(cycleManager, records, allIndicators)
     }
@@ -161,6 +171,10 @@ fun HomeScreen(
     }
     val todayLogs = remember(todayIndicators, visibleRecords) {
         buildTodayLogEntries(todayIndicators, visibleRecords)
+    }
+    val reminderAdvanceDays = reminderPrefs.reminderAdvanceDays()
+    val periodReminder = remember(cycleOverview, reminderAdvanceDays) {
+        buildHomePeriodReminder(cycleOverview, reminderAdvanceDays)
     }
     val todayText = remember {
         SimpleDateFormat("M月d日 EEEE", Locale.CHINA).format(Date())
@@ -185,6 +199,12 @@ fun HomeScreen(
                         if (cycleOverview.configured) onOpenInsights() else onOpenCycleSettings()
                     }
                 )
+            }
+
+            if (periodReminder != null) {
+                item {
+                    HomePeriodReminderCard(reminder = periodReminder)
+                }
             }
 
             item {
@@ -233,6 +253,22 @@ fun HomeScreen(
             }
         }
     }
+}
+
+private fun buildHomePeriodReminder(
+    overview: HomeCycleOverview,
+    advanceDays: Int
+): HomePeriodReminder? {
+    if (!overview.configured || overview.expectedStartMillis <= 0L) return null
+    val days = overview.daysToNext
+    if (days < 0) return null
+    if (days > advanceDays.coerceIn(0, 7)) return null
+    val text = if (days == 0) {
+        "月经预计今天来，出门注意带卫生巾。"
+    } else {
+        "月经预计还有${days}天来，出门注意带卫生巾。"
+    }
+    return HomePeriodReminder(daysToNext = days, text = text)
 }
 
 @Composable
@@ -331,12 +367,22 @@ private fun HomeCycleRingCard(
                             style = Stroke(width = ringStroke, cap = StrokeCap.Round)
                         )
                     }
-
-                    drawPhaseTextOnOuterRing(
-                        arcs = ringArcs,
-                        diameter = diameter,
-                        ringStroke = ringStroke
-                    )
+                    // Keep wrap boundary consistent: redraw menstrual head at the seam.
+                    ringArcs.firstOrNull { it.segment.label == "经期" }?.let { periodArc ->
+                        val capSweepMag = minOf(10f, abs(periodArc.sweepAngle) / 2f)
+                        if (capSweepMag > 0f) {
+                            val capSweep = if (periodArc.sweepAngle >= 0f) capSweepMag else -capSweepMag
+                            drawArc(
+                                color = periodArc.segment.color,
+                                startAngle = periodArc.startAngle,
+                                sweepAngle = capSweep,
+                                useCenter = false,
+                                topLeft = topLeft,
+                                size = arcSize,
+                                style = Stroke(width = ringStroke, cap = StrokeCap.Round)
+                            )
+                        }
+                    }
                 }
 
                 Box(
@@ -443,12 +489,44 @@ private fun HomeCycleRingCard(
             }
         }
 
-        if (overview.configured) {
-            Text(
-                text = "当前阶段：${overview.phaseTitle} · 周期第${overview.cycleDay}天",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF7A6F8D)
-            )
+        HomeRingLegend(overview.ringSegments)
+    }
+}
+
+@Composable
+private fun HomeRingLegend(segments: List<HomeRingSegment>) {
+    val rows = remember(segments) { segments.chunked(2) }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        rows.forEach { rowSegments ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowSegments.forEach { segment ->
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(segment.color, CircleShape)
+                        )
+                        Text(
+                            text = phaseExplainText(segment.label),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF7A6F8D),
+                            modifier = Modifier.padding(start = 6.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -467,7 +545,8 @@ private fun buildHomeRingArcs(overview: HomeCycleOverview): List<HomeRingArc> {
     val total = overview.cycleLength.coerceAtLeast(1)
     val availableSweep = 360f - RING_GAP_ANGLE * overview.ringSegments.size
     val startAngle = if (overview.configured && overview.cycleDay > 0) {
-        TODAY_ANCHOR_ANGLE - currentCycleDayOffsetAngle(overview, availableSweep)
+        // Draw ring counterclockwise and keep "today" anchored at top.
+        TODAY_ANCHOR_ANGLE + currentCycleDayOffsetAngle(overview, availableSweep)
     } else {
         RING_START_ANGLE
     }
@@ -475,13 +554,13 @@ private fun buildHomeRingArcs(overview: HomeCycleOverview): List<HomeRingArc> {
     var cursor = startAngle
     return overview.ringSegments.map { segment ->
         val segmentDays = segment.days.coerceAtLeast(1)
-        val sweep = availableSweep * (segmentDays.toFloat() / total.toFloat())
+        val sweep = -availableSweep * (segmentDays.toFloat() / total.toFloat())
         val arc = HomeRingArc(
             segment = segment,
             startAngle = cursor,
             sweepAngle = sweep
         )
-        cursor += sweep + RING_GAP_ANGLE
+        cursor += sweep - RING_GAP_ANGLE
         arc
     }
 }
@@ -511,11 +590,10 @@ private fun currentCycleDayOffsetAngle(
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPhaseTextOnOuterRing(
     arcs: List<HomeRingArc>,
-    diameter: Float,
-    ringStroke: Float
+    diameter: Float
 ) {
     val basePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.WHITE
+        color = android.graphics.Color.parseColor("#7A5A89")
         textSize = 10.dp.toPx()
         isFakeBoldText = true
         typeface = android.graphics.Typeface.create(
@@ -524,7 +602,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPhaseTextOnOute
         )
     }
 
-    val textDiameter = diameter + ringStroke * 0.22f
+    // Keep text baseline on the ring midline, then center glyphs with font metrics.
+    val textDiameter = diameter
     val centerX = size.width / 2f
     val centerY = size.height / 2f
     val labelOval = RectF(
@@ -540,23 +619,25 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPhaseTextOnOute
             val text = phaseExplainText(arc.segment.label)
             if (text.isBlank()) return@forEach
 
+            val textStartAngle = if (arc.sweepAngle < 0f) arc.startAngle + arc.sweepAngle else arc.startAngle
+            val textSweep = abs(arc.sweepAngle)
             val textPadding = 5f
-            val drawableSweep = (arc.sweepAngle - textPadding * 2f).coerceAtLeast(0f)
+            val drawableSweep = (textSweep - textPadding * 2f).coerceAtLeast(0f)
             if (drawableSweep < 10f) return@forEach
 
-            val midAngle = normalizeRingAngle(arc.startAngle + arc.sweepAngle / 2f)
+            val midAngle = normalizeRingAngle(textStartAngle + textSweep / 2f)
             val shouldReverse = shouldReverseTextPath(midAngle)
             val path = Path().apply {
                 if (shouldReverse) {
                     addArc(
                         labelOval,
-                        arc.startAngle + arc.sweepAngle - textPadding,
+                        textStartAngle + textSweep - textPadding,
                         -drawableSweep
                     )
                 } else {
                     addArc(
                         labelOval,
-                        arc.startAngle + textPadding,
+                        textStartAngle + textPadding,
                         drawableSweep
                     )
                 }
@@ -577,9 +658,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPhaseTextOnOute
 
             val hOffset = ((pathLength - textWidth) / 2f).coerceAtLeast(0f)
             val metrics = textPaint.fontMetrics
-            val textHeight = metrics.descent - metrics.ascent
-            val inwardOffset = (ringStroke * 0.28f - textHeight * 0.18f).coerceAtLeast(1.dp.toPx())
-            val vOffset = if (shouldReverse) -inwardOffset else inwardOffset
+            val centeredOffset = -((metrics.ascent + metrics.descent) / 2f)
+            val vOffset = if (shouldReverse) -centeredOffset else centeredOffset
             nativeCanvas.drawTextOnPath(text, path, hOffset, vOffset, textPaint)
         }
     }
@@ -645,6 +725,47 @@ private fun HomeInfoTipCard(
             style = MaterialTheme.typography.bodyLarge,
             color = Color(0xFF6D6382)
         )
+    }
+}
+
+@Composable
+private fun HomePeriodReminderCard(reminder: HomePeriodReminder) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .glassCard()
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .background(Color(0xFFFFEFE3), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Notifications,
+                contentDescription = "经期提醒",
+                tint = Color(0xFFE5A55A),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = "经期提醒",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color(0xFF5E4F75)
+            )
+            Text(
+                text = reminder.text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF6D6382)
+            )
+        }
     }
 }
 
@@ -897,10 +1018,10 @@ private fun buildHomeCycleOverview(
     indicators: List<DailyIndicatorEntity>
 ): HomeCycleOverview {
     val defaultSegments = listOf(
-        HomeRingSegment(label = "经期", days = 5, color = Color(0xFFF178A9)),
-        HomeRingSegment(label = "卵泡期", days = 9, color = Color(0xFFF594BD)),
-        HomeRingSegment(label = "易孕窗", days = 6, color = Color(0xFF9BCE63)),
-        HomeRingSegment(label = "黄体期", days = 8, color = Color(0xFFA88AE6))
+        HomeRingSegment(label = "经期", days = 5, color = HOME_RING_PERIOD_COLOR),
+        HomeRingSegment(label = "卵泡期", days = 9, color = HOME_RING_FOLLICULAR_COLOR),
+        HomeRingSegment(label = "易孕窗", days = 6, color = HOME_RING_FERTILE_COLOR),
+        HomeRingSegment(label = "黄体期", days = 8, color = HOME_RING_LUTEAL_COLOR)
     )
 
     if (!manager.isConfigured() || manager.lastPeriodStartMillis() <= 0L) {
@@ -959,10 +1080,10 @@ private fun buildHomeCycleOverview(
     val fertileWindowText = "${formatMonthDay(fertileStartMillis)} - ${formatMonthDay(fertileEndMillis)}"
 
     val segments = listOf(
-        HomeRingSegment(label = "经期", days = periodLength, color = Color(0xFFF178A9)),
-        HomeRingSegment(label = "卵泡期", days = follicularDays, color = Color(0xFFF594BD)),
-        HomeRingSegment(label = "易孕窗", days = fertileDays, color = Color(0xFF9BCE63)),
-        HomeRingSegment(label = "黄体期", days = lutealDays, color = Color(0xFFA88AE6))
+        HomeRingSegment(label = "经期", days = periodLength, color = HOME_RING_PERIOD_COLOR),
+        HomeRingSegment(label = "卵泡期", days = follicularDays, color = HOME_RING_FOLLICULAR_COLOR),
+        HomeRingSegment(label = "易孕窗", days = fertileDays, color = HOME_RING_FERTILE_COLOR),
+        HomeRingSegment(label = "黄体期", days = lutealDays, color = HOME_RING_LUTEAL_COLOR)
     )
 
     return HomeCycleOverview(

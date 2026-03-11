@@ -98,6 +98,10 @@ fun ZhiQiApp(lockManager: AppLockManager) {
         }
     }
 
+    LaunchedEffect(Unit) {
+        ReminderScheduler.syncFromPrefs(context)
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()

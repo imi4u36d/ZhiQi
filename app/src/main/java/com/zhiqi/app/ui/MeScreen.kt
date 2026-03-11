@@ -1,10 +1,12 @@
 package com.zhiqi.app.ui
 
 import android.Manifest
-import android.app.TimePickerDialog
+import android.graphics.Color as AndroidColor
+import android.graphics.drawable.ColorDrawable
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.widget.EditText
 import android.widget.NumberPicker
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,9 +23,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -103,7 +102,9 @@ fun MeScreen(
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
     var showAlgorithmDialog by remember { mutableStateOf(false) }
     val reminderTime = remember { mutableStateOf(reminderPrefs.reminderTime()) }
+    val reminderAdvanceDays = remember { mutableStateOf(reminderPrefs.reminderAdvanceDays()) }
 
+    var showReminderSheet by remember { mutableStateOf(false) }
     var showUnlockSheet by remember { mutableStateOf(false) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -113,7 +114,7 @@ fun MeScreen(
             remind = true
             reminderPrefs.saveEnabled(true)
             ReminderScheduler.schedule(context, reminderTime.value)
-            message = "安全提醒已开启"
+            message = "经期提醒已开启"
         } else {
             remind = false
             reminderPrefs.saveEnabled(false)
@@ -197,6 +198,7 @@ fun MeScreen(
                     ReminderRow(
                         remind = remind,
                         reminderTime = reminderTime.value,
+                        reminderAdvanceDays = reminderAdvanceDays.value,
                         onToggle = { enabled ->
                             if (enabled) {
                                 val needsPermission =
@@ -208,28 +210,16 @@ fun MeScreen(
                                     remind = true
                                     reminderPrefs.saveEnabled(true)
                                     ReminderScheduler.schedule(context, reminderTime.value)
-                                    message = "安全提醒已开启"
+                                    message = "经期提醒已开启"
                                 }
                             } else {
                                 remind = false
                                 reminderPrefs.saveEnabled(false)
                                 ReminderScheduler.cancel(context)
-                                message = "安全提醒已关闭"
+                                message = "经期提醒已关闭"
                             }
                         },
-                        onPickTime = {
-                            val parts = reminderTime.value.split(":")
-                            val hour = parts.getOrNull(0)?.toIntOrNull() ?: 21
-                            val minute = parts.getOrNull(1)?.toIntOrNull() ?: 0
-                            TimePickerDialog(context, { _, h: Int, m: Int ->
-                                reminderTime.value = String.format(Locale.getDefault(), "%02d:%02d", h, m)
-                                reminderPrefs.saveTime(reminderTime.value)
-                                if (remind) {
-                                    ReminderScheduler.schedule(context, reminderTime.value)
-                                    message = "提醒时间已更新"
-                                }
-                            }, hour, minute, true).show()
-                        }
+                        onOpenConfig = { showReminderSheet = true }
                     )
                     ReminderPrivacyRow(
                         hidden = hideSensitiveWords,
@@ -388,6 +378,7 @@ fun MeScreen(
                                 cycleManager.restoreSnapshot(null)
                             }
                             reminderPrefs.save(false, reminderTime.value)
+                            reminderPrefs.saveAdvanceDays(3)
                             ReminderScheduler.cancel(context)
                             remind = false
                             clearStep = 0
@@ -475,6 +466,36 @@ fun MeScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("保存") }
             }
+        }
+    }
+
+    if (showReminderSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showReminderSheet = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            PeriodReminderConfigSheet(
+                initialTime = reminderTime.value,
+                initialAdvanceDays = reminderAdvanceDays.value,
+                cycleManager = cycleManager,
+                onSave = { hour, minute, advanceDays ->
+                    val formatted = String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
+                    reminderTime.value = formatted
+                    reminderAdvanceDays.value = advanceDays
+                    reminderPrefs.saveTime(formatted)
+                    reminderPrefs.saveAdvanceDays(advanceDays)
+                    if (remind) {
+                        ReminderScheduler.schedule(context, formatted)
+                        message = "经期提醒设置已更新"
+                    } else {
+                        message = "已保存经期提醒参数，开启提醒后生效"
+                    }
+                    showReminderSheet = false
+                },
+                onCancel = { showReminderSheet = false }
+            )
         }
     }
 }
@@ -591,12 +612,14 @@ private fun SectionCard(
 private fun ReminderRow(
     remind: Boolean,
     reminderTime: String,
+    reminderAdvanceDays: Int,
     onToggle: (Boolean) -> Unit,
-    onPickTime: () -> Unit
+    onOpenConfig: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { onOpenConfig() }
             .padding(vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -611,25 +634,308 @@ private fun ReminderRow(
                 Icon(Icons.Filled.Notifications, contentDescription = "提醒", tint = ZhiQiTokens.Primary)
             }
             Column {
-                Text("安全提醒", color = ZhiQiTokens.TextPrimary, style = MaterialTheme.typography.bodyMedium)
+                Text("经期提醒", color = ZhiQiTokens.TextPrimary, style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    if (remind) "每日 $reminderTime" else "当前未开启",
+                    if (remind) "每日 $reminderTime · 提前${reminderAdvanceDays}天" else "当前未开启 · 提前${reminderAdvanceDays}天",
                     color = ZhiQiTokens.TextSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (remind) {
-                Text(
-                    text = reminderTime,
-                    color = ZhiQiTokens.Primary,
-                    modifier = Modifier.clickable { onPickTime() }
-                )
-            }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "设置",
+                color = ZhiQiTokens.Primary,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.clickable { onOpenConfig() }
+            )
             Switch(checked = remind, onCheckedChange = onToggle)
         }
     }
+}
+
+@Composable
+private fun PeriodReminderConfigSheet(
+    initialTime: String,
+    initialAdvanceDays: Int,
+    cycleManager: CycleSettingsManager,
+    onSave: (hour: Int, minute: Int, advanceDays: Int) -> Unit,
+    onCancel: () -> Unit
+) {
+    val initialHour = remember(initialTime) { initialTime.split(":").getOrNull(0)?.toIntOrNull()?.coerceIn(0, 23) ?: 21 }
+    val initialMinute = remember(initialTime) { initialTime.split(":").getOrNull(1)?.toIntOrNull()?.coerceIn(0, 59) ?: 0 }
+    var selectedHour by remember(initialHour) { mutableStateOf(initialHour) }
+    var selectedMinute by remember(initialMinute) { mutableStateOf(initialMinute) }
+    var selectedAdvanceDays by remember(initialAdvanceDays) { mutableStateOf(initialAdvanceDays.coerceIn(0, 7)) }
+    val reminderPreview = remember(selectedHour, selectedMinute, selectedAdvanceDays, cycleManager) {
+        buildPeriodReminderPreview(
+            cycleManager = cycleManager,
+            reminderHour = selectedHour,
+            reminderMinute = selectedMinute
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "取消",
+                style = MaterialTheme.typography.titleMedium,
+                color = ZhiQiTokens.TextSecondary,
+                modifier = Modifier.noRippleClickable(onCancel)
+            )
+            Text(
+                text = "经期提醒",
+                style = MaterialTheme.typography.titleLarge,
+                color = ZhiQiTokens.TextPrimary
+            )
+            Text(
+                text = "确定",
+                style = MaterialTheme.typography.titleMedium,
+                color = ZhiQiTokens.Primary,
+                modifier = Modifier.noRippleClickable {
+                    onSave(selectedHour, selectedMinute, selectedAdvanceDays)
+                }
+            )
+        }
+
+        SectionCard(title = "提醒时间") {
+            ReminderTimeWheelPicker(
+                selectedHour = selectedHour,
+                selectedMinute = selectedMinute,
+                onHourChange = { selectedHour = it },
+                onMinuteChange = { selectedMinute = it }
+            )
+        }
+
+        SectionCard(title = "提前提醒") {
+            Text(
+                text = "月经来前几天开始提醒",
+                style = MaterialTheme.typography.bodySmall,
+                color = ZhiQiTokens.TextSecondary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            ReminderAdvanceDayWheelPicker(
+                selectedDays = selectedAdvanceDays,
+                onDaysChange = { selectedAdvanceDays = it }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "提醒内容：$reminderPreview",
+                style = MaterialTheme.typography.bodySmall,
+                color = ZhiQiTokens.TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReminderTimeWheelPicker(
+    selectedHour: Int,
+    selectedMinute: Int,
+    onHourChange: (Int) -> Unit,
+    onMinuteChange: (Int) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(170.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .background(Color(0xFFEFF0F3), RoundedCornerShape(12.dp))
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ReminderTimeWheelColumn(
+                value = selectedHour,
+                range = 0..23,
+                onValueChange = onHourChange,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = ":",
+                style = MaterialTheme.typography.headlineSmall,
+                color = ZhiQiTokens.TextPrimary,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+            ReminderTimeWheelColumn(
+                value = selectedMinute,
+                range = 0..59,
+                onValueChange = onMinuteChange,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReminderTimeWheelColumn(
+    value: Int,
+    range: IntRange,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AndroidView(
+        factory = { context ->
+            NumberPicker(context).apply {
+                descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
+                wrapSelectorWheel = true
+                setBackgroundColor(AndroidColor.TRANSPARENT)
+                stripReminderPickerDecoration(this)
+                setFormatter { number -> "%02d".format(number) }
+                styleReminderPickerText(this)
+            }
+        },
+        modifier = modifier
+            .fillMaxWidth()
+            .height(170.dp),
+        update = { picker ->
+            stripReminderPickerDecoration(picker)
+            styleReminderPickerText(picker)
+            val safeRange = if (range.first <= range.last) range else value..value
+            if (picker.minValue != safeRange.first || picker.maxValue != safeRange.last) {
+                picker.minValue = safeRange.first
+                picker.maxValue = safeRange.last
+            }
+            val normalized = value.coerceIn(safeRange.first, safeRange.last)
+            if (picker.value != normalized) {
+                picker.value = normalized
+            }
+            picker.setOnValueChangedListener { _, _, newValue ->
+                if (newValue != value) onValueChange(newValue)
+            }
+        }
+    )
+}
+
+@Composable
+private fun ReminderAdvanceDayWheelPicker(
+    selectedDays: Int,
+    onDaysChange: (Int) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(154.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(42.dp)
+                .background(Color(0xFFEFF0F3), RoundedCornerShape(12.dp))
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AndroidView(
+                factory = { context ->
+                    NumberPicker(context).apply {
+                        descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
+                        wrapSelectorWheel = true
+                        minValue = 0
+                        maxValue = 7
+                        setBackgroundColor(AndroidColor.TRANSPARENT)
+                        stripReminderPickerDecoration(this)
+                        setFormatter { number -> number.toString() }
+                        styleReminderPickerText(this)
+                    }
+                },
+                modifier = Modifier
+                    .size(width = 120.dp, height = 154.dp),
+                update = { picker ->
+                    stripReminderPickerDecoration(picker)
+                    styleReminderPickerText(picker)
+                    if (picker.minValue != 0 || picker.maxValue != 7) {
+                        picker.minValue = 0
+                        picker.maxValue = 7
+                    }
+                    val normalized = selectedDays.coerceIn(0, 7)
+                    if (picker.value != normalized) {
+                        picker.value = normalized
+                    }
+                    picker.setOnValueChangedListener { _, _, newValue ->
+                        if (newValue != selectedDays) onDaysChange(newValue.coerceIn(0, 7))
+                    }
+                }
+            )
+            Text(
+                text = "天",
+                style = MaterialTheme.typography.titleMedium,
+                color = ZhiQiTokens.TextSecondary,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        }
+    }
+}
+
+private fun stripReminderPickerDecoration(picker: NumberPicker) {
+    runCatching {
+        val dividerField = NumberPicker::class.java.getDeclaredField("mSelectionDivider")
+        dividerField.isAccessible = true
+        dividerField.set(picker, ColorDrawable(AndroidColor.TRANSPARENT))
+    }
+    runCatching {
+        val dividerHeightField = NumberPicker::class.java.getDeclaredField("mSelectionDividerHeight")
+        dividerHeightField.isAccessible = true
+        dividerHeightField.setInt(picker, 0)
+    }
+    runCatching {
+        val dividerDistanceField = NumberPicker::class.java.getDeclaredField("mSelectionDividersDistance")
+        dividerDistanceField.isAccessible = true
+        dividerDistanceField.setInt(picker, 0)
+    }
+    runCatching {
+        val method = NumberPicker::class.java.getDeclaredMethod("setSelectionDividerHeight", Int::class.javaPrimitiveType)
+        method.isAccessible = true
+        method.invoke(picker, 0)
+    }
+    picker.invalidate()
+}
+
+private fun styleReminderPickerText(picker: NumberPicker) {
+    val textColor = AndroidColor.parseColor("#2F2A35")
+    runCatching {
+        val selectorWheelPaintField = NumberPicker::class.java.getDeclaredField("mSelectorWheelPaint")
+        selectorWheelPaintField.isAccessible = true
+        val paint = selectorWheelPaintField.get(picker) as android.graphics.Paint
+        paint.color = textColor
+        paint.textSize = 58f
+    }
+    runCatching {
+        val inputTextField = NumberPicker::class.java.getDeclaredField("mInputText")
+        inputTextField.isAccessible = true
+        val editText = inputTextField.get(picker) as? EditText
+        editText?.setTextColor(textColor)
+        editText?.setHintTextColor(textColor)
+        editText?.alpha = 1f
+    }
+    for (index in 0 until picker.childCount) {
+        val child = picker.getChildAt(index)
+        if (child is EditText) {
+            child.setTextColor(textColor)
+            child.setHintTextColor(textColor)
+            child.alpha = 1f
+        }
+    }
+    picker.invalidate()
 }
 
 @Composable
@@ -897,14 +1203,14 @@ fun CycleSettingsSheet(
             )
             if (expandedEditor == CycleSettingsEditor.CYCLE_LENGTH) {
                 Text(
-                    "左右滑动选择 21 到 45 天",
+                    "上下滚动选择 21 到 45 天",
                     style = MaterialTheme.typography.bodySmall,
                     color = ZhiQiTokens.TextSecondary
                 )
-                DayValuePicker(
-                    valueRange = 21..45,
-                    selectedValue = cycleDays,
-                    onSelect = { cycleDays = it }
+                CycleDayWheelPicker(
+                    value = cycleDays,
+                    range = 21..45,
+                    onValueChange = { cycleDays = it }
                 )
             }
 
@@ -921,14 +1227,14 @@ fun CycleSettingsSheet(
             )
             if (expandedEditor == CycleSettingsEditor.PERIOD_LENGTH) {
                 Text(
-                    "左右滑动选择 2 到 10 天",
+                    "上下滚动选择 2 到 10 天",
                     style = MaterialTheme.typography.bodySmall,
                     color = ZhiQiTokens.TextSecondary
                 )
-                DayValuePicker(
-                    valueRange = 2..10,
-                    selectedValue = periodDays,
-                    onSelect = { periodDays = it }
+                CycleDayWheelPicker(
+                    value = periodDays,
+                    range = 2..10,
+                    onValueChange = { periodDays = it }
                 )
             }
 
@@ -1088,20 +1394,31 @@ private fun CycleWheelColumn(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ZhiQiTokens.Surface, RoundedCornerShape(14.dp))
-                .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(14.dp))
+                .height(170.dp),
+            contentAlignment = Alignment.Center
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .background(Color(0xFFEFF0F3), RoundedCornerShape(12.dp))
+            )
             AndroidView(
                 factory = { context ->
                     NumberPicker(context).apply {
                         descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
                         wrapSelectorWheel = false
+                        setBackgroundColor(AndroidColor.TRANSPARENT)
+                        stripReminderPickerDecoration(this)
+                        styleReminderPickerText(this)
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(146.dp),
+                    .height(170.dp),
                 update = { picker ->
+                    stripReminderPickerDecoration(picker)
+                    styleReminderPickerText(picker)
                     val safeRange = if (range.first <= range.last) range else value..value
                     if (picker.minValue != safeRange.first || picker.maxValue != safeRange.last) {
                         picker.minValue = safeRange.first
@@ -1121,39 +1438,63 @@ private fun CycleWheelColumn(
 }
 
 @Composable
-private fun DayValuePicker(
-    valueRange: IntRange,
-    selectedValue: Int,
-    onSelect: (Int) -> Unit
+private fun CycleDayWheelPicker(
+    value: Int,
+    range: IntRange,
+    onValueChange: (Int) -> Unit
 ) {
-    LazyRow(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .wrapContentHeight(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+            .height(170.dp),
+        contentAlignment = Alignment.Center
     ) {
-        items(valueRange.toList()) { day ->
-            Box(
-                modifier = Modifier
-                    .background(
-                        if (day == selectedValue) ZhiQiTokens.PrimarySoft else ZhiQiTokens.Surface,
-                        RoundedCornerShape(18.dp)
-                    )
-                    .border(
-                        1.dp,
-                        if (day == selectedValue) ZhiQiTokens.PrimaryStrong else ZhiQiTokens.Border,
-                        RoundedCornerShape(18.dp)
-                    )
-                    .clickable { onSelect(day) }
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "$day",
-                    color = if (day == selectedValue) ZhiQiTokens.Primary else Color(0xFF5E6674),
-                    fontWeight = if (day == selectedValue) FontWeight.Medium else FontWeight.Normal
-                )
-            }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .background(Color(0xFFEFF0F3), RoundedCornerShape(12.dp))
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AndroidView(
+                factory = { context ->
+                    NumberPicker(context).apply {
+                        descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
+                        wrapSelectorWheel = false
+                        setBackgroundColor(AndroidColor.TRANSPARENT)
+                        stripReminderPickerDecoration(this)
+                        setFormatter { number -> number.toString() }
+                        styleReminderPickerText(this)
+                    }
+                },
+                modifier = Modifier.size(width = 120.dp, height = 170.dp),
+                update = { picker ->
+                    stripReminderPickerDecoration(picker)
+                    styleReminderPickerText(picker)
+                    val safeRange = if (range.first <= range.last) range else value..value
+                    if (picker.minValue != safeRange.first || picker.maxValue != safeRange.last) {
+                        picker.minValue = safeRange.first
+                        picker.maxValue = safeRange.last
+                    }
+                    val normalized = value.coerceIn(safeRange.first, safeRange.last)
+                    if (picker.value != normalized) {
+                        picker.value = normalized
+                    }
+                    picker.setOnValueChangedListener { _, _, newValue ->
+                        if (newValue != value) onValueChange(newValue)
+                    }
+                }
+            )
+            Text(
+                text = "天",
+                style = MaterialTheme.typography.titleMedium,
+                color = ZhiQiTokens.TextSecondary,
+                modifier = Modifier.padding(start = 8.dp)
+            )
         }
     }
 }
@@ -1209,6 +1550,60 @@ private fun formatCycleMonthDay(timeMillis: Long): String {
 
 private fun calculateNextCycleStart(lastPeriodStartMillis: Long, cycleDays: Int): Long {
     return lastPeriodStartMillis + cycleDays * 24L * 60L * 60L * 1000L
+}
+
+private fun buildPeriodReminderPreview(
+    cycleManager: CycleSettingsManager,
+    reminderHour: Int,
+    reminderMinute: Int
+): String {
+    val referenceMillis = nextReminderReferenceMillis(reminderHour, reminderMinute)
+    val daysUntil = calculateDaysUntilNextPeriod(cycleManager, referenceMillis)
+    return formatPeriodReminderContent(daysUntil)
+}
+
+private fun nextReminderReferenceMillis(hour: Int, minute: Int): Long {
+    val now = Calendar.getInstance()
+    val target = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, hour.coerceIn(0, 23))
+        set(Calendar.MINUTE, minute.coerceIn(0, 59))
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+        if (!after(now)) {
+            add(Calendar.DAY_OF_MONTH, 1)
+        }
+    }
+    return target.timeInMillis
+}
+
+private fun calculateDaysUntilNextPeriod(
+    cycleManager: CycleSettingsManager,
+    nowMillis: Long
+): Int? {
+    if (!cycleManager.isConfigured()) return null
+    val lastStart = cycleManager.lastPeriodStartMillis()
+    if (lastStart <= 0L) return null
+    val cycleDays = cycleManager.cycleLengthDays().coerceIn(21, 45)
+    val dayMillis = 24L * 60L * 60L * 1000L
+    val today = startOfDayMillis(nowMillis)
+    var nextStart = startOfDayMillis(lastStart)
+    var guard = 0
+    while (nextStart < today && guard < 240) {
+        nextStart += cycleDays * dayMillis
+        guard += 1
+    }
+    if (guard >= 240) return null
+    return ((nextStart - today) / dayMillis).toInt().coerceAtLeast(0)
+}
+
+private fun startOfDayMillis(timeMillis: Long): Long {
+    return Calendar.getInstance().apply {
+        timeInMillis = timeMillis
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
 }
 
 private fun defaultBackupFileName(): String {

@@ -2,6 +2,7 @@ package com.zhiqi.app.ui
 
 import android.graphics.Color as AndroidColor
 import android.graphics.drawable.ColorDrawable
+import android.widget.EditText
 import android.widget.NumberPicker
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -431,6 +432,7 @@ private fun TimeWheelColumn(
             .height(170.dp),
         update = { picker ->
             stripPickerDecoration(picker)
+            stylePickerText(picker)
             val safeRange = if (range.first <= range.last) range else value..value
             if (picker.minValue != safeRange.first || picker.maxValue != safeRange.last) {
                 picker.minValue = safeRange.first
@@ -472,13 +474,31 @@ private fun stripPickerDecoration(picker: NumberPicker) {
 }
 
 private fun stylePickerText(picker: NumberPicker) {
+    val textColor = AndroidColor.parseColor("#2F2A35")
     runCatching {
         val selectorWheelPaintField = NumberPicker::class.java.getDeclaredField("mSelectorWheelPaint")
         selectorWheelPaintField.isAccessible = true
         val paint = selectorWheelPaintField.get(picker) as android.graphics.Paint
-        paint.color = AndroidColor.parseColor("#2F2A35")
+        paint.color = textColor
         paint.textSize = 58f
     }
+    runCatching {
+        val inputTextField = NumberPicker::class.java.getDeclaredField("mInputText")
+        inputTextField.isAccessible = true
+        val editText = inputTextField.get(picker) as? EditText
+        editText?.setTextColor(textColor)
+        editText?.setHintTextColor(textColor)
+        editText?.alpha = 1f
+    }
+    for (index in 0 until picker.childCount) {
+        val child = picker.getChildAt(index)
+        if (child is EditText) {
+            child.setTextColor(textColor)
+            child.setHintTextColor(textColor)
+            child.alpha = 1f
+        }
+    }
+    picker.invalidate()
 }
 
 @Composable

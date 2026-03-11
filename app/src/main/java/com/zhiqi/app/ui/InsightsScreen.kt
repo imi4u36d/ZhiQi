@@ -90,6 +90,23 @@ private const val CALENDAR_PAGER_START_PAGE = CALENDAR_PAGER_TOTAL_PAGES / 2
 private const val CALENDAR_ROW_HEIGHT_DP = 52
 private const val CALENDAR_BODY_EXTRA_DP = 70
 
+private val PHASE_COLOR_PERIOD = Color(0xFFF07AA8)
+private val PHASE_COLOR_PREDICTED_PERIOD = Color(0xFFF4C1D5)
+private val PHASE_COLOR_FERTILE = Color(0xFFBE92ED)
+private val PHASE_COLOR_OVULATION = Color(0xFF9E6BDB)
+private val PHASE_COLOR_LUTEAL = Color(0xFFD7B44A)
+
+private val CALENDAR_BG_SELECTED = Color(0xFFF6CCDD)
+private val CALENDAR_BG_ACTUAL_PERIOD = Color(0xFFF2A9C6)
+private val CALENDAR_BG_PREDICTED_PERIOD = Color(0xFFF7DDEA)
+private val CALENDAR_BG_OVULATION = Color(0xFFE6D9F8)
+
+private val CALENDAR_TEXT_DEFAULT = Color(0xFF47505D)
+private val CALENDAR_TEXT_SELECTED = Color(0xFF8B2D58)
+private val CALENDAR_TEXT_PERIOD = Color(0xFF742246)
+private val CALENDAR_TEXT_PREDICTED_PERIOD = Color(0xFF7D395A)
+private val CALENDAR_TEXT_FERTILE = Color(0xFF5A3B8E)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InsightsScreen(
@@ -460,20 +477,25 @@ private fun CalendarDayCell(
     val isTodayOnly = day.isToday && !isSelected
     val background = when {
         day.isBlank -> Color.Transparent
-        isSelected -> Color(0xFFFFE6F0)
-        state == PhaseState.ACTUAL_PERIOD -> Color(0xFFFFE3EE)
-        state == PhaseState.PREDICTED_PERIOD -> Color(0xFFFFF2F8)
-        state == PhaseState.OVULATION_DAY -> Color(0xFFF6EEFF)
+        isSelected && day.isToday -> Color.Transparent
+        isSelected -> CALENDAR_BG_SELECTED
+        state == PhaseState.ACTUAL_PERIOD -> CALENDAR_BG_ACTUAL_PERIOD
+        state == PhaseState.PREDICTED_PERIOD -> CALENDAR_BG_PREDICTED_PERIOD
+        state == PhaseState.OVULATION_DAY -> CALENDAR_BG_OVULATION
         else -> Color.Transparent
     }
     val numberColor = when {
         day.isBlank -> Color.Transparent
-        isSelected -> Color(0xFFD35288)
-        state == PhaseState.ACTUAL_PERIOD -> Color(0xFFD35288)
-        state == PhaseState.PREDICTED_PERIOD -> Color(0xFFC98AA5)
-        state == PhaseState.FERTILE || state == PhaseState.OVULATION_DAY -> Color(0xFFA16ADB)
-        else -> Color(0xFF4E5663)
-    }.let { if (isFuture) it.copy(alpha = 0.42f) else it }
+        isSelected -> CALENDAR_TEXT_SELECTED
+        state == PhaseState.ACTUAL_PERIOD -> CALENDAR_TEXT_PERIOD
+        state == PhaseState.PREDICTED_PERIOD -> CALENDAR_TEXT_PREDICTED_PERIOD
+        state == PhaseState.FERTILE || state == PhaseState.OVULATION_DAY -> CALENDAR_TEXT_FERTILE
+        else -> CALENDAR_TEXT_DEFAULT
+    }.let { if (isFuture) it.copy(alpha = 0.66f) else it }
+    val emphasizeNumber = day.isToday || isSelected ||
+        state == PhaseState.ACTUAL_PERIOD ||
+        state == PhaseState.PREDICTED_PERIOD ||
+        state == PhaseState.OVULATION_DAY
 
     Box(
         modifier = modifier
@@ -487,8 +509,8 @@ private fun CalendarDayCell(
                     else -> 0.dp
                 },
                 color = when {
-                    isSelected -> Color(0xFFD35288)
-                    isTodayOnly -> Color(0xFFFFA4C4)
+                    isSelected -> PHASE_COLOR_PERIOD
+                    isTodayOnly -> Color(0xFFF08FB5)
                     else -> Color.Transparent
                 },
                 shape = RoundedCornerShape(12.dp)
@@ -499,62 +521,77 @@ private fun CalendarDayCell(
         contentAlignment = Alignment.Center
     ) {
         if (!day.isBlank) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                if (isTodayOnly) {
-                    Box(
-                        modifier = Modifier
-                            .size(5.dp)
-                            .background(Color(0xFFD35288), CircleShape)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Spacer(modifier = Modifier.height(3.dp))
+                Box(
+                    modifier = Modifier
+                        .width(20.dp)
+                        .height(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = day.dayNumber.toString(),
+                        color = numberColor,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = if (emphasizeNumber) FontWeight.SemiBold else FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
                     )
-                } else if (isSelected) {
-                    Box(
-                        modifier = Modifier
-                            .size(5.dp)
-                            .background(Color(0xFFD35288), CircleShape)
-                    )
-                } else {
-                    Spacer(modifier = Modifier.height(5.dp))
                 }
-                Text(
-                    text = day.dayNumber.toString(),
-                    color = numberColor,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = if (day.isToday || isSelected) FontWeight.SemiBold else FontWeight.Medium
-                )
-                Text(
-                    text = if (day.isToday) "今" else "",
-                    color = if (day.isToday) Color(0xFFD35288) else Color.Transparent,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1
-                )
-                if (state == PhaseState.OVULATION_DAY) {
-                    Text("✿", color = Color(0xFFA16ADB), style = MaterialTheme.typography.labelSmall)
-                } else if (day.periodMarker == PeriodMarker.START) {
-                    PeriodMarkerIcon(
-                        icon = Icons.Filled.PlayArrow,
-                        tint = Color(0xFFD35288),
-                        background = Color(0xFFFFE5EF)
-                    )
-                } else if (day.periodMarker == PeriodMarker.END) {
-                    PeriodMarkerIcon(
-                        icon = Icons.Filled.Pause,
-                        tint = Color(0xFFCE6A93),
-                        background = Color(0xFFFFECF3)
-                    )
-                } else if (day.hasRecord) {
-                    Box(
-                        modifier = Modifier
-                            .size(3.dp)
-                            .background(
-                                if (isSelected || day.isToday) Color(0xFFD35288) else Color(0xFFFF7BAE),
-                                CircleShape
+                Box(
+                    modifier = Modifier.size(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when {
+                        state == PhaseState.OVULATION_DAY -> {
+                            Text("✿", color = PHASE_COLOR_OVULATION, style = MaterialTheme.typography.labelSmall)
+                        }
+                        day.periodMarker == PeriodMarker.START -> {
+                            PeriodMarkerIcon(
+                                icon = Icons.Filled.PlayArrow,
+                                tint = PHASE_COLOR_PERIOD,
+                                background = Color(0xFFFCE0EA)
                             )
-                    )
-                } else {
-                    Spacer(modifier = Modifier.height(3.dp))
+                        }
+                        day.periodMarker == PeriodMarker.END -> {
+                            PeriodMarkerIcon(
+                                icon = Icons.Filled.Pause,
+                                tint = Color(0xFFB45A81),
+                                background = Color(0xFFF8E4EC)
+                            )
+                        }
+                        day.hasRecord -> {
+                            RecordCheckMarkerIcon()
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RecordCheckMarkerIcon() {
+    Canvas(modifier = Modifier.size(11.dp)) {
+        val stroke = size.minDimension * 0.24f
+        val tint = Color(0xFF6FD3B1)
+        drawLine(
+            color = tint,
+            start = Offset(size.width * 0.20f, size.height * 0.55f),
+            end = Offset(size.width * 0.42f, size.height * 0.78f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = tint,
+            start = Offset(size.width * 0.42f, size.height * 0.78f),
+            end = Offset(size.width * 0.82f, size.height * 0.26f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
     }
 }
 
@@ -582,10 +619,10 @@ private fun PeriodMarkerIcon(
 @Composable
 private fun CalendarLegend() {
     val items = listOf(
-        LegendItem("月经期", Color(0xFFFFA8C9)),
-        LegendItem("预测经期", Color(0xFFFFE8F2)),
-        LegendItem("排卵期", Color(0xFFD8BCFB)),
-        LegendItem("排卵日", Color(0xFFB283EB))
+        LegendItem("月经期", PHASE_COLOR_PERIOD),
+        LegendItem("预测经期", PHASE_COLOR_PREDICTED_PERIOD),
+        LegendItem("排卵期", PHASE_COLOR_FERTILE),
+        LegendItem("排卵日", PHASE_COLOR_OVULATION)
     )
     Row(
         modifier = Modifier
@@ -605,7 +642,7 @@ private fun CalendarLegend() {
                 )
                 Text(
                     text = " ${item.label}",
-                    color = Color(0xFF7D8390),
+                    color = Color(0xFF5F6673),
                     style = MaterialTheme.typography.labelMedium
                 )
             }
@@ -1485,10 +1522,10 @@ private fun buildCycleInsight(
                 "如果经期长期推迟或异常疼痛，建议及时咨询医生。"
             ),
             segments = listOf(
-                CycleSegment("经期", ZhiQiTokens.PrimaryStrong, 5),
-                CycleSegment("卵泡期", Color(0xFF8CD99D), 9),
-                CycleSegment("排卵期", Color(0xFFC58EFF), 6),
-                CycleSegment("黄体期", Color(0xFFF6D9E5), 8)
+                CycleSegment("经期", PHASE_COLOR_PERIOD, 5),
+                CycleSegment("卵泡期", PHASE_COLOR_PREDICTED_PERIOD, 9),
+                CycleSegment("排卵期", PHASE_COLOR_FERTILE, 6),
+                CycleSegment("黄体期", PHASE_COLOR_LUTEAL, 8)
             )
         )
     }
@@ -1553,10 +1590,10 @@ private fun buildCycleInsight(
         fertileText = "${fertileLength} 天窗口",
         guidance = guidance,
         segments = listOf(
-            CycleSegment("经期", ZhiQiTokens.PrimaryStrong, periodLength),
-            CycleSegment("卵泡期", Color(0xFF8CD99D), follicularLength),
-            CycleSegment("排卵期", Color(0xFFC58EFF), fertileLength),
-            CycleSegment("黄体期", Color(0xFFF6D9E5), lutealLength)
+            CycleSegment("经期", PHASE_COLOR_PERIOD, periodLength),
+            CycleSegment("卵泡期", PHASE_COLOR_PREDICTED_PERIOD, follicularLength),
+            CycleSegment("排卵期", PHASE_COLOR_FERTILE, fertileLength),
+            CycleSegment("黄体期", PHASE_COLOR_LUTEAL, lutealLength)
         )
     )
 }
