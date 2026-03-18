@@ -27,11 +27,16 @@ fun GlassBackground(content: @Composable () -> Unit) {
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    listOf(ZhiQiTokens.BackgroundTop, ZhiQiTokens.BackgroundBottom)
+                    listOf(
+                        ZhiQiTokens.BackgroundTop,
+                        Color.White,
+                        ZhiQiTokens.PrimarySoft.copy(alpha = 0.52f),
+                        ZhiQiTokens.BackgroundBottom
+                    )
                 )
             )
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
         Box(
             modifier = Modifier
@@ -40,10 +45,13 @@ fun GlassBackground(content: @Composable () -> Unit) {
                 .background(
                     Brush.radialGradient(
                         colors = listOf(
-                            ZhiQiTokens.AccentSoft.copy(alpha = 0.45f),
+                            ZhiQiTokens.PrimarySoft.copy(alpha = 0.34f),
+                            ZhiQiTokens.AccentStrongerSoft.copy(alpha = 0.34f),
+                            Color(0xFFFFF5CC).copy(alpha = 0.28f),
+                            Color(0xFFDDE8FF).copy(alpha = 0.24f),
                             Color.Transparent
                         ),
-                        radius = 1080f
+                        radius = 1180f
                     )
                 )
         )
@@ -52,17 +60,24 @@ fun GlassBackground(content: @Composable () -> Unit) {
 }
 
 fun Modifier.glassCard(): Modifier {
-    val shape = RoundedCornerShape(22.dp)
+    val shape = RoundedCornerShape(34.dp)
     return this
         .shadow(
-            elevation = 16.dp,
+            elevation = 18.dp,
             shape = shape,
-            ambientColor = ZhiQiTokens.Primary.copy(alpha = 0.14f),
-            spotColor = ZhiQiTokens.PrimaryStrong.copy(alpha = 0.12f)
+            ambientColor = ZhiQiTokens.Primary.copy(alpha = 0.08f),
+            spotColor = Color.White.copy(alpha = 0.18f)
         )
         .clip(shape)
-        .background(ZhiQiTokens.Surface.copy(alpha = 0.96f))
-        .border(1.dp, ZhiQiTokens.Border, shape)
+        .background(
+            Brush.linearGradient(
+                listOf(
+                    Color.White.copy(alpha = 0.82f),
+                    ZhiQiTokens.Surface.copy(alpha = 0.74f)
+                )
+            )
+        )
+        .border(1.dp, Color.White.copy(alpha = 0.74f), shape)
 }
 
 @Composable

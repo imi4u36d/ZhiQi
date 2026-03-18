@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#F6F0EA"/>
+  <rect x="40" y="40" width="320" height="220" rx="28" fill="#FFFFFF" stroke="#E7D7C8"/>
+  <text x="60" y="100" font-family="SF Pro Display, PingFang SC, sans-serif" font-size="28" font-weight="700" fill="#1F1A17">ZhiQi Mock</text>
+</svg>

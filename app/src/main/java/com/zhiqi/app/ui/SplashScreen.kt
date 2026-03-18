@@ -60,12 +60,12 @@ fun SplashScreen(onFinished: () -> Unit) {
             Image(
                 painter = painterResource(id = R.drawable.ic_splash_art),
                 contentDescription = "启动插画",
-                modifier = Modifier.size(180.dp)
+                modifier = Modifier.size(196.dp)
             )
             Spacer(modifier = Modifier.height(20.dp))
-            Text("知期", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("知期", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = ZhiQiTokens.TextPrimary)
             Spacer(modifier = Modifier.height(8.dp))
-            Text("私密记录，安心随行", style = MaterialTheme.typography.bodyLarge)
+            Text("像写手帐一样，轻轻记录今天", style = MaterialTheme.typography.bodyLarge, color = ZhiQiTokens.TextSecondary)
         }
     }
 }

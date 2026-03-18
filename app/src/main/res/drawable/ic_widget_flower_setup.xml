@@ -6,7 +6,7 @@
                 android:width="8dp"
                 android:height="22dp" />
             <corners android:radius="6dp" />
-            <solid android:color="#FF7FB787" />
+            <solid android:color="#FFA9C39F" />
         </shape>
     </item>
 
@@ -15,7 +15,7 @@
             <size
                 android:width="24dp"
                 android:height="30dp" />
-            <solid android:color="#FFDEA2BA" />
+            <solid android:color="#FFF4C9D6" />
         </shape>
     </item>
 
@@ -24,7 +24,7 @@
             <size
                 android:width="14dp"
                 android:height="14dp" />
-            <solid android:color="#FFE77CA7" />
+            <solid android:color="#FFD88FA7" />
         </shape>
     </item>
 </layer-list>

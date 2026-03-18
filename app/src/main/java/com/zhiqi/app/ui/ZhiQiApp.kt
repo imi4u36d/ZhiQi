@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
@@ -120,7 +122,8 @@ fun ZhiQiApp(lockManager: AppLockManager) {
                 bottomBar = {
                     AppBottomBar(
                         currentRoute = currentRoute,
-                        onNavigate = { route -> currentRoute = route }
+                        onNavigate = { route -> currentRoute = route },
+                        onQuickRecord = { currentRoute = "analysis" }
                     )
                 }
             ) { innerPadding ->
@@ -143,7 +146,10 @@ fun ZhiQiApp(lockManager: AppLockManager) {
                             }
                         },
                         onOpenCycleSettings = { showCycleSheet = true },
-                        onOpenInsights = {
+                        onOpenTrends = {
+                            currentRoute = "insights"
+                        },
+                        onOpenJournal = {
                             currentRoute = "analysis"
                         }
                     )
@@ -366,79 +372,108 @@ fun ZhiQiApp(lockManager: AppLockManager) {
 @Composable
 private fun AppBottomBar(
     currentRoute: String,
-    onNavigate: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    onQuickRecord: () -> Unit
 ) {
     val items = listOf(
-        Triple("home", "首页", Icons.Filled.Home),
-        Triple("insights", "洞察", Icons.Filled.AutoGraph),
+        Triple("home", "今日", Icons.Filled.Home),
         Triple("analysis", "记录", Icons.Filled.CalendarMonth),
-        Triple("me", "我的", Icons.Filled.Person)
+        Triple("insights", "趋势", Icons.Filled.AutoGraph),
+        Triple("me", "安全", Icons.Filled.Person)
     )
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        contentAlignment = Alignment.BottomCenter
     ) {
-        val barShape = RoundedCornerShape(24.dp)
+        val barShape = RoundedCornerShape(36.dp)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(74.dp)
                 .shadow(
-                    elevation = 18.dp,
+                    elevation = 24.dp,
                     shape = barShape,
-                    ambientColor = ZhiQiTokens.Primary.copy(alpha = 0.14f),
-                    spotColor = ZhiQiTokens.PrimaryStrong.copy(alpha = 0.16f)
+                    ambientColor = ZhiQiTokens.Primary.copy(alpha = 0.1f),
+                    spotColor = Color.White.copy(alpha = 0.22f)
                 )
                 .clip(barShape)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, barShape)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
+                .background(Color.White.copy(alpha = 0.62f))
+                .border(1.dp, Color.White.copy(alpha = 0.82f), barShape)
+                .padding(horizontal = 22.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            items.forEach { (route, label, icon) ->
-                val selected = currentRoute == route
-                val itemShape = RoundedCornerShape(16.dp)
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(itemShape)
-                        .background(
-                            if (selected) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                Color.Transparent
-                            }
-                        )
-                        .noRippleClickable { onNavigate(route) }
-                        .padding(vertical = 6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = label,
-                        tint = if (selected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.size(21.dp)
-                    )
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (selected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
-                    )
-                }
+            items.take(2).forEach { (route, label, icon) ->
+                BottomNavItem(
+                    route = route,
+                    label = label,
+                    icon = icon,
+                    selected = currentRoute == route,
+                    onNavigate = onNavigate
+                )
+            }
+            Spacer(modifier = Modifier.size(56.dp))
+            items.drop(2).forEach { (route, label, icon) ->
+                BottomNavItem(
+                    route = route,
+                    label = label,
+                    icon = icon,
+                    selected = currentRoute == route,
+                    onNavigate = onNavigate
+                )
             }
         }
+
+        Box(
+            modifier = Modifier
+                .offset(y = (-28).dp)
+                .size(62.dp)
+                .shadow(
+                    elevation = 24.dp,
+                    shape = RoundedCornerShape(24.dp),
+                    ambientColor = ZhiQiTokens.Primary.copy(alpha = 0.18f),
+                    spotColor = ZhiQiTokens.PrimaryStrong.copy(alpha = 0.18f)
+                )
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color.White)
+                .border(4.dp, Color.White.copy(alpha = 0.58f), RoundedCornerShape(24.dp))
+                .noRippleClickable(onQuickRecord),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = "快速记录",
+                tint = ZhiQiTokens.Primary,
+                modifier = Modifier.size(30.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomNavItem(
+    route: String,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    selected: Boolean,
+    onNavigate: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .noRippleClickable { onNavigate(route) }
+            .padding(horizontal = 6.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = if (selected) ZhiQiTokens.TextPrimary else ZhiQiTokens.TextMuted.copy(alpha = 0.8f),
+            modifier = Modifier.size(if (selected) 25.dp else 23.dp)
+        )
     }
 }
 

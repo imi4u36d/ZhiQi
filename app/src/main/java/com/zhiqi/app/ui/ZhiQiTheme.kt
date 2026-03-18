@@ -16,25 +16,25 @@ import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 
 object ZhiQiTokens {
-    val Primary = Color(0xFFD85B95)
-    val PrimaryStrong = Color(0xFFC64582)
-    val PrimarySoft = Color(0xFFFFE4EF)
-    val AccentSoft = Color(0xFFFFF0F6)
-    val AccentStrongerSoft = Color(0xFFFFD8E9)
+    val Primary = Color(0xFFF07FA5)
+    val PrimaryStrong = Color(0xFFE35D8F)
+    val PrimarySoft = Color(0xFFFFE3EC)
+    val AccentSoft = Color(0xFFFFF7D8)
+    val AccentStrongerSoft = Color(0xFFDFF7F1)
 
-    val TextPrimary = Color(0xFF1F2532)
-    val TextSecondary = Color(0xFF6C7382)
-    val TextMuted = Color(0xFF8C94A3)
+    val TextPrimary = Color(0xFF1E293B)
+    val TextSecondary = Color(0xFF64748B)
+    val TextMuted = Color(0xFF94A3B8)
 
-    val BackgroundTop = Color(0xFFFFFCFE)
-    val BackgroundBottom = Color(0xFFFDF2F7)
+    val BackgroundTop = Color(0xFFFFF8FB)
+    val BackgroundBottom = Color(0xFFF5F7FF)
 
     val Surface = Color(0xFFFFFFFF)
-    val SurfaceSoft = Color(0xFFFBF5F8)
-    val Border = Color(0xFFEEDFE8)
-    val BorderStrong = Color(0xFFE6CDDB)
+    val SurfaceSoft = Color(0xFFF8FAFC)
+    val Border = Color(0xFFE2E8F0)
+    val BorderStrong = Color(0xFFD7DFEA)
 
-    val Danger = Color(0xFFCC4A69)
+    val Danger = Color(0xFFEF6F7E)
 }
 
 private val LightColors = lightColorScheme(
@@ -46,10 +46,10 @@ private val LightColors = lightColorScheme(
     onSecondary = Color.White,
     secondaryContainer = ZhiQiTokens.AccentSoft,
     onSecondaryContainer = ZhiQiTokens.TextPrimary,
-    tertiary = Color(0xFFA06ECF),
+    tertiary = Color(0xFF14B8A6),
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFF1E7FB),
-    onTertiaryContainer = Color(0xFF4D3A66),
+    tertiaryContainer = Color(0xFFDBF7F1),
+    onTertiaryContainer = Color(0xFF0F766E),
     error = ZhiQiTokens.Danger,
     onError = Color.White,
     background = ZhiQiTokens.BackgroundTop,
@@ -66,20 +66,20 @@ private val AppTypography = Typography(
     headlineLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Bold,
-        fontSize = 30.sp,
-        lineHeight = 38.sp
+        fontSize = 32.sp,
+        lineHeight = 40.sp
     ),
     headlineMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Bold,
-        fontSize = 24.sp,
+        fontSize = 26.sp,
         lineHeight = 32.sp
     ),
     headlineSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp,
-        lineHeight = 28.sp
+        fontSize = 21.sp,
+        lineHeight = 29.sp
     ),
     titleLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
@@ -140,9 +140,9 @@ private val AppTypography = Typography(
 private val AppShapes = Shapes(
     extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
     small = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
-    medium = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-    large = androidx.compose.foundation.shape.RoundedCornerShape(26.dp),
-    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(30.dp)
+    medium = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+    large = androidx.compose.foundation.shape.RoundedCornerShape(30.dp),
+    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(38.dp)
 )
 
 private fun TextStyle.scaleBy(scale: Float): TextStyle {

@@ -5,7 +5,7 @@
             <size
                 android:width="12dp"
                 android:height="22dp" />
-            <solid android:color="#FFF6D783" />
+            <solid android:color="#FFF5E2A8" />
         </shape>
     </item>
 
@@ -14,7 +14,7 @@
             <size
                 android:width="12dp"
                 android:height="22dp" />
-            <solid android:color="#FFF6D783" />
+            <solid android:color="#FFF5E2A8" />
         </shape>
     </item>
 
@@ -23,7 +23,7 @@
             <size
                 android:width="12dp"
                 android:height="22dp" />
-            <solid android:color="#FFF8DF95" />
+            <solid android:color="#FFF8E8BF" />
         </shape>
     </item>
 
@@ -32,7 +32,7 @@
             <size
                 android:width="12dp"
                 android:height="22dp" />
-            <solid android:color="#FFF8DF95" />
+            <solid android:color="#FFF8E8BF" />
         </shape>
     </item>
 
@@ -44,7 +44,7 @@
             <size
                 android:width="12dp"
                 android:height="22dp" />
-            <solid android:color="#FFF9E8AA" />
+            <solid android:color="#FFFBF0D4" />
         </shape>
     </item>
 
@@ -56,7 +56,7 @@
             <size
                 android:width="12dp"
                 android:height="22dp" />
-            <solid android:color="#FFF9E8AA" />
+            <solid android:color="#FFFBF0D4" />
         </shape>
     </item>
 
@@ -68,7 +68,7 @@
             <size
                 android:width="12dp"
                 android:height="22dp" />
-            <solid android:color="#FFF9E8AA" />
+            <solid android:color="#FFFBF0D4" />
         </shape>
     </item>
 
@@ -80,7 +80,7 @@
             <size
                 android:width="12dp"
                 android:height="22dp" />
-            <solid android:color="#FFF9E8AA" />
+            <solid android:color="#FFFBF0D4" />
         </shape>
     </item>
 
@@ -89,7 +89,7 @@
             <size
                 android:width="16dp"
                 android:height="16dp" />
-            <solid android:color="#FFF3B14F" />
+            <solid android:color="#FFDAB56F" />
         </shape>
     </item>
 </layer-list>

@@ -13,10 +13,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -58,12 +60,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.zhiqi.app.R
 import com.zhiqi.app.data.RecordRepository
 import com.zhiqi.app.data.DailyIndicatorRepository
 import com.zhiqi.app.security.CryptoManager
@@ -149,7 +153,8 @@ fun MeScreen(
     GlassBackground {
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(bottom = 112.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
                 ProfileHeader(
@@ -243,7 +248,7 @@ fun MeScreen(
             }
 
             item {
-                SectionCard(title = "数据管理") {
+                SectionCard(title = "备份与设备") {
                     MenuRow(
                         icon = Icons.Filled.Person,
                         title = "账号与设备同步",
@@ -506,11 +511,11 @@ private fun ProfileHeader(
     cycleConfigured: Boolean,
     pinConfigured: Boolean
 ) {
-    val cardShape = RoundedCornerShape(24.dp)
+    val cardShape = RoundedCornerShape(34.dp)
     val brush = Brush.linearGradient(
         listOf(
-            ZhiQiTokens.AccentSoft,
             ZhiQiTokens.PrimarySoft,
+            Color.White,
             ZhiQiTokens.AccentStrongerSoft
         )
     )
@@ -518,51 +523,59 @@ private fun ProfileHeader(
         modifier = Modifier
             .fillMaxWidth()
             .background(brush, cardShape)
-            .border(1.dp, ZhiQiTokens.BorderStrong, cardShape)
-            .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .border(1.dp, Color.White.copy(alpha = 0.78f), cardShape)
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
             Row(
                 modifier = Modifier.weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(ZhiQiTokens.AccentStrongerSoft, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.Person, contentDescription = "我的", tint = ZhiQiTokens.Primary)
-                }
+                Image(
+                    painter = painterResource(id = R.drawable.ill_brand_blossom),
+                    contentDescription = "品牌插画",
+                    modifier = Modifier.size(58.dp)
+                )
                 Column {
                     Text(
-                        "我的",
-                        color = ZhiQiTokens.TextPrimary,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
+                        "VAULT MODE",
+                        color = ZhiQiTokens.PrimaryStrong,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "本地优先的数据与隐私管理",
+                        "你的私密花园",
+                        color = ZhiQiTokens.TextPrimary,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "隐私、提醒与备份都集中在这里，保持轻量，也保持可控。",
                         color = ZhiQiTokens.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
-            Text(
-                text = if (pinConfigured) "已加密" else "未设密码",
-                color = ZhiQiTokens.Primary,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Clip,
-                modifier = Modifier.padding(start = 10.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .background(Color.White.copy(alpha = 0.82f), RoundedCornerShape(999.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = if (pinConfigured) "已保护" else "待加固",
+                    color = ZhiQiTokens.TextPrimary,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip
+                )
+            }
         }
 
         Row(
@@ -571,7 +584,7 @@ private fun ProfileHeader(
         ) {
             SummaryPill(label = "记录", value = recordCount.toString(), modifier = Modifier.weight(1f))
             SummaryPill(label = "周期", value = if (cycleConfigured) "已配置" else "未配置", modifier = Modifier.weight(1f))
-            SummaryPill(label = "安全", value = if (pinConfigured) "开启" else "关闭", modifier = Modifier.weight(1f))
+            SummaryPill(label = "保护", value = if (pinConfigured) "开启" else "关闭", modifier = Modifier.weight(1f))
         }
     }
 }
@@ -580,8 +593,8 @@ private fun ProfileHeader(
 private fun SummaryPill(label: String, value: String, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .background(ZhiQiTokens.Surface.copy(alpha = 0.94f), RoundedCornerShape(18.dp))
-            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(18.dp))
+            .background(Color.White.copy(alpha = 0.72f), RoundedCornerShape(22.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.72f), RoundedCornerShape(22.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
@@ -599,10 +612,16 @@ private fun SectionCard(
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
         content = {
-            Text(title, style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
+            Box(
+                modifier = Modifier
+                    .background(Color.White.copy(alpha = 0.82f), RoundedCornerShape(999.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(title, style = MaterialTheme.typography.labelMedium, color = ZhiQiTokens.TextPrimary, fontWeight = FontWeight.SemiBold)
+            }
             content()
         }
     )
@@ -619,8 +638,10 @@ private fun ReminderRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(ZhiQiTokens.SurfaceSoft, RoundedCornerShape(20.dp))
+            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(20.dp))
             .clickable { onOpenConfig() }
-            .padding(vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -628,7 +649,8 @@ private fun ReminderRow(
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .background(ZhiQiTokens.PrimarySoft, RoundedCornerShape(12.dp)),
+                    .background(ZhiQiTokens.AccentStrongerSoft, RoundedCornerShape(14.dp))
+                    .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.Notifications, contentDescription = "提醒", tint = ZhiQiTokens.Primary)
@@ -946,7 +968,9 @@ private fun ReminderPrivacyRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp),
+            .background(ZhiQiTokens.SurfaceSoft, RoundedCornerShape(20.dp))
+            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(20.dp))
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -954,7 +978,8 @@ private fun ReminderPrivacyRow(
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .background(ZhiQiTokens.PrimarySoft, RoundedCornerShape(12.dp)),
+                    .background(ZhiQiTokens.AccentSoft, RoundedCornerShape(14.dp))
+                    .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.Notifications, contentDescription = "通知隐私", tint = ZhiQiTokens.Primary)
@@ -981,7 +1006,9 @@ private fun PasswordToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp),
+            .background(ZhiQiTokens.SurfaceSoft, RoundedCornerShape(20.dp))
+            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(20.dp))
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -989,7 +1016,8 @@ private fun PasswordToggleRow(
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .background(ZhiQiTokens.PrimarySoft, RoundedCornerShape(12.dp)),
+                    .background(ZhiQiTokens.PrimarySoft, RoundedCornerShape(14.dp))
+                    .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.Lock, contentDescription = "密码解锁", tint = ZhiQiTokens.Primary)
@@ -1027,7 +1055,7 @@ private fun DataStatusBlock(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Text("当前数据概况", color = ZhiQiTokens.TextPrimary, style = MaterialTheme.typography.bodyMedium)
+        Text("当前数据概况", color = ZhiQiTokens.TextPrimary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
         Text("记录数：$recordCount", color = ZhiQiTokens.TextSecondary, style = MaterialTheme.typography.bodySmall)
         Text("周期配置：${if (cycleConfigured) "已保存" else "未保存"}", color = ZhiQiTokens.TextSecondary, style = MaterialTheme.typography.bodySmall)
         Text("密码功能：${if (passwordEnabled) "开启" else "关闭"}", color = ZhiQiTokens.TextSecondary, style = MaterialTheme.typography.bodySmall)
@@ -1047,7 +1075,9 @@ private fun MenuRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp)
+            .background(ZhiQiTokens.SurfaceSoft, RoundedCornerShape(20.dp))
+            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(20.dp))
+            .padding(horizontal = 12.dp, vertical = 12.dp)
             .clickable(enabled = enabled && onClick != null) { onClick?.invoke() },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -1056,7 +1086,8 @@ private fun MenuRow(
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .background(ZhiQiTokens.PrimarySoft, RoundedCornerShape(12.dp)),
+                    .background(ZhiQiTokens.PrimarySoft, RoundedCornerShape(14.dp))
+                    .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(icon, contentDescription = title, tint = ZhiQiTokens.Primary)

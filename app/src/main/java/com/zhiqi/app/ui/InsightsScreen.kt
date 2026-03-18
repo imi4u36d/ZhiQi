@@ -3,6 +3,7 @@ package com.zhiqi.app.ui
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -67,6 +69,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -75,6 +78,7 @@ import com.zhiqi.app.data.DailyIndicatorEntity
 import com.zhiqi.app.data.DailyIndicatorRepository
 import com.zhiqi.app.data.RecordEntity
 import com.zhiqi.app.data.RecordRepository
+import com.zhiqi.app.R
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -90,22 +94,22 @@ private const val CALENDAR_PAGER_START_PAGE = CALENDAR_PAGER_TOTAL_PAGES / 2
 private const val CALENDAR_ROW_HEIGHT_DP = 52
 private const val CALENDAR_BODY_EXTRA_DP = 70
 
-private val PHASE_COLOR_PERIOD = Color(0xFFF07AA8)
-private val PHASE_COLOR_PREDICTED_PERIOD = Color(0xFFF4C1D5)
-private val PHASE_COLOR_FERTILE = Color(0xFFBE92ED)
-private val PHASE_COLOR_OVULATION = Color(0xFF9E6BDB)
+private val PHASE_COLOR_PERIOD = Color(0xFF8F4145)
+private val PHASE_COLOR_PREDICTED_PERIOD = Color(0xFFF2D9D7)
+private val PHASE_COLOR_FERTILE = Color(0xFF6F7E63)
+private val PHASE_COLOR_OVULATION = Color(0xFF53624A)
 private val PHASE_COLOR_LUTEAL = Color(0xFFD7B44A)
 
-private val CALENDAR_BG_SELECTED = Color(0xFFF6CCDD)
-private val CALENDAR_BG_ACTUAL_PERIOD = Color(0xFFF2A9C6)
-private val CALENDAR_BG_PREDICTED_PERIOD = Color(0xFFF7DDEA)
-private val CALENDAR_BG_OVULATION = Color(0xFFE6D9F8)
+private val CALENDAR_BG_SELECTED = Color(0xFFF6EEE6)
+private val CALENDAR_BG_ACTUAL_PERIOD = Color(0xFFF2D9D7)
+private val CALENDAR_BG_PREDICTED_PERIOD = Color(0xFFF7EFE8)
+private val CALENDAR_BG_OVULATION = Color(0xFFE3E8DC)
 
-private val CALENDAR_TEXT_DEFAULT = Color(0xFF47505D)
-private val CALENDAR_TEXT_SELECTED = Color(0xFF8B2D58)
-private val CALENDAR_TEXT_PERIOD = Color(0xFF742246)
-private val CALENDAR_TEXT_PREDICTED_PERIOD = Color(0xFF7D395A)
-private val CALENDAR_TEXT_FERTILE = Color(0xFF5A3B8E)
+private val CALENDAR_TEXT_DEFAULT = Color(0xFF5B5049)
+private val CALENDAR_TEXT_SELECTED = Color(0xFF6E2D31)
+private val CALENDAR_TEXT_PERIOD = Color(0xFF6E2D31)
+private val CALENDAR_TEXT_PREDICTED_PERIOD = Color(0xFF8F4145)
+private val CALENDAR_TEXT_FERTILE = Color(0xFF53624A)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -190,7 +194,10 @@ fun InsightsScreen(
     }
 
     GlassBackground {
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(
+            contentPadding = PaddingValues(bottom = 112.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
             item {
                 CalendarPanel(
                     monthStateProvider = monthStateProvider,
@@ -340,9 +347,47 @@ private fun CalendarPanel(
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = 18.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "JOURNAL",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = ZhiQiTokens.PrimaryStrong,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "花园日历",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = ZhiQiTokens.TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "左右滑动切换月份，像翻阅情绪和身体的小档案。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ZhiQiTokens.TextSecondary
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Color.White.copy(alpha = 0.84f), RoundedCornerShape(22.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(22.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ill_brand_blossom),
+                    contentDescription = "品牌插画",
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+        }
         RecordCalendarHeader(
             title = headerState.title,
             selectedDateMillis = selectedDateMillis,
@@ -403,23 +448,37 @@ private fun RecordCalendarHeader(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineSmall,
-                color = Color(0xFF5F4F76),
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = "回到今天",
-                style = MaterialTheme.typography.labelMedium,
-                color = ZhiQiTokens.Primary,
-                modifier = Modifier.noRippleClickable(onBackToToday)
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "记录中心",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = ZhiQiTokens.TextPrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ZhiQiTokens.TextSecondary
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .background(ZhiQiTokens.PrimarySoft, RoundedCornerShape(16.dp))
+                    .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(16.dp))
+                    .noRippleClickable(onBackToToday)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "回到今天",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = ZhiQiTokens.Primary
+                )
+            }
         }
         Text(
             text = "当前日期：${formatMonthDay(selectedDateMillis)} · 左右滑动切换月份",
             style = MaterialTheme.typography.bodySmall,
-            color = Color(0xFF9A8FB0)
+            color = ZhiQiTokens.TextMuted
         )
     }
 }
@@ -436,7 +495,7 @@ private fun CalendarWeekHeader() {
                 text = label,
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center,
-                color = Color(0xFF7B708F),
+                color = ZhiQiTokens.TextSecondary,
                 style = MaterialTheme.typography.titleMedium
             )
         }
@@ -510,7 +569,7 @@ private fun CalendarDayCell(
                 },
                 color = when {
                     isSelected -> PHASE_COLOR_PERIOD
-                    isTodayOnly -> Color(0xFFF08FB5)
+                    isTodayOnly -> ZhiQiTokens.Primary
                     else -> Color.Transparent
                 },
                 shape = RoundedCornerShape(12.dp)
@@ -553,14 +612,14 @@ private fun CalendarDayCell(
                             PeriodMarkerIcon(
                                 icon = Icons.Filled.PlayArrow,
                                 tint = PHASE_COLOR_PERIOD,
-                                background = Color(0xFFFCE0EA)
+                                background = ZhiQiTokens.PrimarySoft
                             )
                         }
                         day.periodMarker == PeriodMarker.END -> {
                             PeriodMarkerIcon(
                                 icon = Icons.Filled.Pause,
-                                tint = Color(0xFFB45A81),
-                                background = Color(0xFFF8E4EC)
+                                tint = ZhiQiTokens.PrimaryStrong,
+                                background = ZhiQiTokens.SurfaceSoft
                             )
                         }
                         day.hasRecord -> {
@@ -577,7 +636,7 @@ private fun CalendarDayCell(
 private fun RecordCheckMarkerIcon() {
     Canvas(modifier = Modifier.size(11.dp)) {
         val stroke = size.minDimension * 0.24f
-        val tint = Color(0xFF6FD3B1)
+        val tint = PHASE_COLOR_FERTILE
         drawLine(
             color = tint,
             start = Offset(size.width * 0.20f, size.height * 0.55f),
@@ -642,7 +701,7 @@ private fun CalendarLegend() {
                 )
                 Text(
                     text = " ${item.label}",
-                    color = Color(0xFF5F6673),
+                    color = ZhiQiTokens.TextSecondary,
                     style = MaterialTheme.typography.labelMedium
                 )
             }
@@ -656,36 +715,37 @@ private fun InsightActionCard(onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .padding(horizontal = 14.dp, vertical = 16.dp),
+            .background(
+                Color.White.copy(alpha = 0.14f),
+                RoundedCornerShape(34.dp)
+            )
+            .padding(horizontal = 18.dp, vertical = 18.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
-                    .background(Color(0xFFFFE8F0), RoundedCornerShape(14.dp)),
+                    .size(44.dp)
+                    .background(Color.White.copy(alpha = 0.82f), RoundedCornerShape(18.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.76f), RoundedCornerShape(18.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.AutoGraph, contentDescription = "规律解读", tint = ZhiQiTokens.Primary)
+                Icon(Icons.Filled.AutoGraph, contentDescription = "规律解读", tint = PHASE_COLOR_FERTILE)
             }
             Column {
-                Text("月经规律解读", color = ZhiQiTokens.Primary, style = MaterialTheme.typography.titleMedium)
-                Text("对比上次，本次经期有哪些异常？", color = ZhiQiTokens.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Text("周期趋势解读", color = ZhiQiTokens.TextPrimary, style = MaterialTheme.typography.titleMedium)
+                Text("看最近周期有没有波动，再决定要不要补记。", color = ZhiQiTokens.TextSecondary, style = MaterialTheme.typography.bodySmall)
             }
         }
         Box(
             modifier = Modifier
-                .background(
-                    brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                        listOf(ZhiQiTokens.Primary, ZhiQiTokens.PrimaryStrong)
-                    ),
-                    shape = RoundedCornerShape(18.dp)
-                )
+                .background(Color.White.copy(alpha = 0.86f), RoundedCornerShape(20.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.82f), RoundedCornerShape(20.dp))
                 .noRippleClickable(onClick)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
-            Text("去查看", color = Color.White, style = MaterialTheme.typography.titleSmall)
+            Text("去查看", color = PHASE_COLOR_FERTILE, style = MaterialTheme.typography.titleSmall)
         }
     }
 }
@@ -703,11 +763,17 @@ private fun PeriodStatusSection(
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 18.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
-            text = "${formatMonthDay(selectedDateMillis)}记录",
+            text = "身体在说什么？",
+            style = MaterialTheme.typography.headlineSmall,
+            color = ZhiQiTokens.TextPrimary,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = "${formatMonthDay(selectedDateMillis)} 状态",
             style = MaterialTheme.typography.titleMedium,
             color = ZhiQiTokens.TextPrimary
         )
@@ -757,7 +823,13 @@ private fun PeriodToggleCard(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title, style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
+            Text("先记录月经状态，再补充当天指标。", style = MaterialTheme.typography.bodySmall, color = ZhiQiTokens.TextSecondary)
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ToggleButton(text = if (active) "已记录" else "确定", active = !active, onClick = onYes)
             ToggleButton(text = "撤销", active = canUndo, onClick = onUndo)
@@ -770,9 +842,10 @@ private fun ToggleButton(text: String, active: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .background(
-                if (active) ZhiQiTokens.PrimaryStrong else ZhiQiTokens.Surface,
+                if (active) ZhiQiTokens.Primary else ZhiQiTokens.Surface,
                 RoundedCornerShape(14.dp)
             )
+            .border(1.dp, if (active) ZhiQiTokens.Primary else ZhiQiTokens.Border, RoundedCornerShape(14.dp))
             .noRippleClickable(onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
@@ -800,80 +873,104 @@ private fun RecordEntryList(
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
+            .padding(horizontal = 18.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        items.forEachIndexed { index, item ->
+        Text(
+            text = "一键记录",
+            style = MaterialTheme.typography.headlineSmall,
+            color = ZhiQiTokens.TextPrimary
+        )
+        Text(
+            text = "把高频项做成卡片入口，像参考稿那样，保持轻触即可记录。",
+            style = MaterialTheme.typography.bodySmall,
+            color = ZhiQiTokens.TextSecondary
+        )
+        items.chunked(2).forEach { rowItems ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(top = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(
-                    modifier = Modifier.weight(1f, fill = false),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(item.accentColor.copy(alpha = 0.14f), CircleShape)
-                            .border(1.dp, item.accentColor.copy(alpha = 0.22f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        RecordEntryGlyphIcon(
-                            glyph = item.glyph,
-                            tint = item.accentColor,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Column {
-                        Text(item.title, color = ZhiQiTokens.TextPrimary, style = MaterialTheme.typography.titleMedium)
-                        val saved = indicators.firstOrNull { it.metricKey == item.metricKey }
-                        if (item.metricKey == "爱爱" && loveRecords.isNotEmpty()) {
-                            val loveLabel = if (loveRecords.size > 1) {
-                                "已记录 · ${loveRecords.size}次"
-                            } else {
-                                "已记录 · ${formatLoveProtectionLabel(loveRecords.first())}"
-                            }
-                            Text(
-                                loveLabel,
-                                color = ZhiQiTokens.TextMuted,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        } else if (saved != null) {
-                            Text(
-                                saved.displayLabel,
-                                color = ZhiQiTokens.TextMuted,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
+                rowItems.forEach { item ->
+                    RecordEntryCard(
+                        item = item,
+                        indicators = indicators,
+                        loveRecords = loveRecords,
+                        modifier = Modifier.weight(1f),
+                        onAddRecord = onAddRecord
+                    )
                 }
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .border(1.dp, ZhiQiTokens.BorderStrong, CircleShape)
-                        .noRippleClickable { onAddRecord(item.metricKey) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = item.title, tint = ZhiQiTokens.Primary)
+                if (rowItems.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
-            }
-            if (index != items.lastIndex) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .padding(start = 68.dp)
-                        .background(ZhiQiTokens.Border)
-                )
             }
         }
+    }
+}
+
+@Composable
+private fun RecordEntryCard(
+    item: RecordEntryItem,
+    indicators: List<DailyIndicatorEntity>,
+    loveRecords: List<RecordEntity>,
+    modifier: Modifier = Modifier,
+    onAddRecord: (String?) -> Unit
+) {
+    val saved = indicators.firstOrNull { it.metricKey == item.metricKey }
+    val summary = when {
+        item.metricKey == "爱爱" && loveRecords.isNotEmpty() -> {
+            if (loveRecords.size > 1) "已记录 ${loveRecords.size} 次" else formatLoveProtectionLabel(loveRecords.first())
+        }
+        saved != null -> saved.displayLabel
+        else -> "点击记录"
+    }
+
+    Column(
+        modifier = modifier
+            .background(ZhiQiTokens.SurfaceSoft, RoundedCornerShape(22.dp))
+            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(22.dp))
+            .noRippleClickable { onAddRecord(item.metricKey) }
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(item.accentColor.copy(alpha = 0.14f), CircleShape)
+                    .border(1.dp, item.accentColor.copy(alpha = 0.22f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                RecordEntryGlyphIcon(
+                    glyph = item.glyph,
+                    tint = item.accentColor,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .background(ZhiQiTokens.Surface, CircleShape)
+                    .border(1.dp, ZhiQiTokens.BorderStrong, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = item.title, tint = ZhiQiTokens.Primary, modifier = Modifier.size(16.dp))
+            }
+        }
+        Text(item.title, color = ZhiQiTokens.TextPrimary, style = MaterialTheme.typography.titleMedium)
+        Text(
+            text = summary,
+            color = if (saved != null || (item.metricKey == "爱爱" && loveRecords.isNotEmpty())) ZhiQiTokens.TextSecondary else ZhiQiTokens.TextMuted,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -1228,7 +1325,7 @@ private fun buildCycleMonthState(
         add(Calendar.MONTH, monthOffset)
         set(Calendar.DAY_OF_MONTH, 1)
     }
-    val title = SimpleDateFormat("M月", Locale.getDefault()).format(Date(monthCalendar.timeInMillis))
+    val title = SimpleDateFormat("yyyy年M月", Locale.getDefault()).format(Date(monthCalendar.timeInMillis))
     val cycleLength = cycleManager.cycleLengthDays()
     val periodLength = cycleManager.periodLengthDays()
     val actualRanges = buildActualPeriodRanges(cycleManager, indicators)

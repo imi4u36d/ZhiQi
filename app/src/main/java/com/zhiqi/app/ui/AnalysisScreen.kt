@@ -1,12 +1,14 @@
 package com.zhiqi.app.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,10 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.TipsAndUpdates
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,8 +32,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.zhiqi.app.R
 import com.zhiqi.app.data.DailyIndicatorEntity
 import com.zhiqi.app.data.RecordEntity
 import java.text.SimpleDateFormat
@@ -95,10 +99,10 @@ fun AnalysisScreen(
     }
     val phaseGuides = remember(currentPhase) {
         listOf(
-            CyclePhaseGuide("经期", "第1-5天", "保暖与休息优先，观察流量与疼痛等级。", Color(0xFFF184AF)),
-            CyclePhaseGuide("卵泡期", "第6-13天", "逐步恢复运动强度，维持规律作息与饮水。", Color(0xFFF5A1C2)),
-            CyclePhaseGuide("易孕窗", "排卵前后约6天", "重点关注白带与体温变化，若无计划建议加强防护。", Color(0xFFA7CF6B)),
-            CyclePhaseGuide("黄体期", "排卵后至下次月经前", "容易疲惫或情绪波动，尽量降低高压安排。", Color(0xFFAE92E6))
+            CyclePhaseGuide("经期", "第1-5天", "保暖与休息优先，观察流量与疼痛等级。", Color(0xFFE7A4B6)),
+            CyclePhaseGuide("卵泡期", "第6-13天", "逐步恢复运动强度，维持规律作息与饮水。", Color(0xFFF2C8D4)),
+            CyclePhaseGuide("易孕窗", "排卵前后约6天", "重点关注白带与体温变化，若无计划建议加强防护。", Color(0xFFB6D1AE)),
+            CyclePhaseGuide("黄体期", "排卵后至下次月经前", "容易疲惫或情绪波动，尽量降低高压安排。", Color(0xFFF0D9A5))
         ).prioritizeGuidesByCurrentPhase(currentPhase)
     }
     val sortedKnowledgeCards = remember(knowledgeCards, currentPhase) {
@@ -114,7 +118,17 @@ fun AnalysisScreen(
     }
 
     GlassBackground {
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(
+            contentPadding = PaddingValues(bottom = 112.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            item {
+                InsightHeaderCard(
+                    summary = state.summary,
+                    hasData = state.slices.isNotEmpty(),
+                    onOpenRecordPage = onOpenRecordPage
+                )
+            }
             if (state.slices.isEmpty()) {
                 item { EmptyInsightCard(onOpenRecordPage = onOpenRecordPage) }
             } else {
@@ -149,50 +163,46 @@ private fun InsightHeaderCard(
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = 18.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .background(ZhiQiTokens.PrimarySoft, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.AutoGraph,
-                        contentDescription = "洞察",
-                        tint = ZhiQiTokens.Primary
-                    )
-                }
-                Column {
-                    Text(
-                        text = "洞察与健康内容",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = ZhiQiTokens.TextPrimary
-                    )
-                    Text(
-                        text = "${summary.startLabel} - ${summary.endLabel}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = ZhiQiTokens.TextMuted
-                    )
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "TREND NOTE",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = ZhiQiTokens.PrimaryStrong
+                )
+                Text(
+                    text = "风感趋势",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = ZhiQiTokens.TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${summary.startLabel} - ${summary.endLabel}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ZhiQiTokens.TextMuted
+                )
             }
 
-            Text(
-                text = "去记录",
-                style = MaterialTheme.typography.labelLarge,
-                color = ZhiQiTokens.Primary,
-                modifier = Modifier.clickable(onClick = onOpenRecordPage)
-            )
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .background(Color.White.copy(alpha = 0.84f), RoundedCornerShape(24.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.78f), RoundedCornerShape(24.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ill_brand_blossom),
+                    contentDescription = "品牌插画",
+                    modifier = Modifier.size(40.dp)
+                )
+            }
         }
 
         Text(
@@ -204,6 +214,16 @@ private fun InsightHeaderCard(
             style = MaterialTheme.typography.bodyMedium,
             color = ZhiQiTokens.TextSecondary
         )
+        Text(
+            text = "去记录",
+            style = MaterialTheme.typography.labelLarge,
+            color = ZhiQiTokens.TextPrimary,
+            modifier = Modifier
+                .background(Color.White.copy(alpha = 0.86f), RoundedCornerShape(18.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.78f), RoundedCornerShape(18.dp))
+                .clickable(onClick = onOpenRecordPage)
+                .padding(horizontal = 14.dp, vertical = 9.dp)
+        )
     }
 }
 
@@ -214,8 +234,14 @@ private fun EmptyInsightCard(onOpenRecordPage: () -> Unit) {
             .fillMaxWidth()
             .glassCard()
             .padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        Image(
+            painter = painterResource(id = R.drawable.ill_empty_journal),
+            contentDescription = "空状态插画",
+            modifier = Modifier.size(164.dp)
+        )
         Text("暂无可分析数据", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
         Text(
             "建议先记录流量、疼痛、情绪、睡眠等高频项，连续 7 天后会生成趋势洞察。",
@@ -226,7 +252,11 @@ private fun EmptyInsightCard(onOpenRecordPage: () -> Unit) {
             text = "去记录今天",
             color = ZhiQiTokens.Primary,
             style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.clickable(onClick = onOpenRecordPage)
+            modifier = Modifier
+                .background(ZhiQiTokens.PrimarySoft, RoundedCornerShape(16.dp))
+                .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(16.dp))
+                .clickable(onClick = onOpenRecordPage)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
         )
     }
 }
@@ -237,10 +267,11 @@ private fun TrendOverviewCard(state: AnalysisOverviewState) {
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 18.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("趋势洞察", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
+        SoftBadge(text = "TREND")
+        Text("最近 30 天的小波动", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -315,14 +346,19 @@ private fun PersonalizedAdviceCard(insight: ComprehensiveInsight) {
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        SoftBadge(text = "CARE TIP", background = ZhiQiTokens.AccentStrongerSoft, textColor = MaterialTheme.colorScheme.tertiary)
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(Icons.Filled.TipsAndUpdates, contentDescription = "建议", tint = Color(0xFFE2B055))
+            Icon(
+                Icons.Filled.TipsAndUpdates,
+                contentDescription = "建议",
+                tint = MaterialTheme.colorScheme.tertiary
+            )
             Text("个性化建议", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
         }
 
@@ -370,9 +406,14 @@ private fun RecordCoverageCard(
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        SoftBadge(
+            text = "CHECK LIST",
+            background = ZhiQiTokens.AccentSoft,
+            textColor = MaterialTheme.colorScheme.tertiary
+        )
         Text("记录提升建议", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
         Text(
             text = "核心指标覆盖：${coreLabels.size - missing.size}/${coreLabels.size} 项",
@@ -408,9 +449,10 @@ private fun CycleGuideSection(guides: List<CyclePhaseGuide>, currentPhase: Strin
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        SoftBadge(text = "PHASE GUIDE", background = ZhiQiTokens.AccentStrongerSoft, textColor = MaterialTheme.colorScheme.tertiary)
         Text("周期阶段指南", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
         if (!currentPhase.isNullOrBlank()) {
             Text(
@@ -457,9 +499,10 @@ private fun KnowledgeSection(cards: List<KnowledgeCard>, currentPhase: String?) 
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        SoftBadge(text = "READING")
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -496,7 +539,7 @@ private fun KnowledgeSection(cards: List<KnowledgeCard>, currentPhase: String?) 
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.MenuBook,
+                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
                         contentDescription = card.tag,
                         tint = ZhiQiTokens.Primary,
                         modifier = Modifier.size(18.dp)
@@ -518,9 +561,14 @@ private fun WarningSignalsSection(signals: List<WarningSignal>) {
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(9.dp)
     ) {
+        SoftBadge(
+            text = "RED FLAG",
+            background = ZhiQiTokens.PrimarySoft.copy(alpha = 0.72f),
+            textColor = ZhiQiTokens.PrimaryStrong
+        )
         Text("需要关注的红旗信号", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
         Text(
             text = "出现以下情况建议尽快线下就诊，避免自行长期观察。",
@@ -531,15 +579,15 @@ private fun WarningSignalsSection(signals: List<WarningSignal>) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFFF3F6), RoundedCornerShape(12.dp))
-                    .border(1.dp, Color(0xFFF7D8E4), RoundedCornerShape(12.dp))
+                    .background(ZhiQiTokens.SurfaceSoft, RoundedCornerShape(12.dp))
+                    .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(12.dp))
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Box(
                     modifier = Modifier
                         .size(8.dp)
-                        .background(Color(0xFFE66B95), CircleShape)
+                        .background(ZhiQiTokens.PrimaryStrong, CircleShape)
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(signal.title, style = MaterialTheme.typography.titleSmall, color = ZhiQiTokens.TextPrimary)
@@ -572,9 +620,10 @@ private fun FaqSection() {
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        SoftBadge(text = "FAQ")
         Text("常见问题", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
         faqs.forEach { faq ->
             Column(
@@ -608,6 +657,27 @@ private fun InsightDisclaimerCard() {
         color = ZhiQiTokens.TextMuted,
         modifier = Modifier.padding(horizontal = 6.dp)
     )
+}
+
+@Composable
+private fun SoftBadge(
+    text: String,
+    background: Color = ZhiQiTokens.PrimarySoft,
+    textColor: Color = ZhiQiTokens.Primary
+) {
+    Box(
+        modifier = Modifier
+            .background(background, RoundedCornerShape(16.dp))
+            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(16.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = textColor,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
 }
 
 private fun buildAnalysisOverview(
@@ -689,7 +759,7 @@ private fun buildPieSlices(countByMetric: Map<String, Int>): List<PieSlice> {
             label = "其他",
             count = count,
             ratio = count.toFloat() / total.toFloat(),
-            color = Color(0xFFC4CAD5)
+            color = ZhiQiTokens.BorderStrong
         )
     }
     return slices
