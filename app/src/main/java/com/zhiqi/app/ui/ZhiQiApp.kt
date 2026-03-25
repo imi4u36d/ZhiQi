@@ -11,12 +11,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
@@ -24,10 +22,9 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -51,6 +49,11 @@ import com.zhiqi.app.data.RecordRepository
 import com.zhiqi.app.security.AppLockManager
 import com.zhiqi.app.security.PinManager
 import kotlinx.coroutines.launch
+
+private const val ROUTE_HOME = "home"
+private const val ROUTE_JOURNAL = "journal"
+private const val ROUTE_TRENDS = "trends"
+private const val ROUTE_ME = "me"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,7 +92,7 @@ fun ZhiQiApp(lockManager: AppLockManager) {
             !onboardingPrefs.getBoolean("completed", false) && !cycleManager.isConfigured()
         )
     }
-    var currentRoute by remember { mutableStateOf("home") }
+    var currentRoute by remember { mutableStateOf(ROUTE_HOME) }
     val isUnlocked by lockManager.isUnlocked.collectAsState()
     val pinConfigured by pinManager.pinConfigured.collectAsState()
     val passwordEnabled by pinManager.passwordEnabled.collectAsState()
@@ -119,17 +122,17 @@ fun ZhiQiApp(lockManager: AppLockManager) {
         } else {
             Scaffold(
                 containerColor = Color.Transparent,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     AppBottomBar(
                         currentRoute = currentRoute,
-                        onNavigate = { route -> currentRoute = route },
-                        onQuickRecord = { currentRoute = "analysis" }
+                        onNavigate = { route -> currentRoute = route }
                     )
                 }
             ) { innerPadding ->
                 Box(modifier = Modifier.padding(innerPadding)) {
                     when (currentRoute) {
-                        "home" -> {
+                        ROUTE_HOME -> {
                     HomeScreen(
                         repository = repository,
                         indicatorRepository = indicatorRepository,
@@ -147,21 +150,21 @@ fun ZhiQiApp(lockManager: AppLockManager) {
                         },
                         onOpenCycleSettings = { showCycleSheet = true },
                         onOpenTrends = {
-                            currentRoute = "insights"
+                            currentRoute = ROUTE_TRENDS
                         },
                         onOpenJournal = {
-                            currentRoute = "analysis"
+                            currentRoute = ROUTE_JOURNAL
                         }
                     )
                         }
-                        "insights" -> {
+                        ROUTE_TRENDS -> {
                         AnalysisScreen(
                             records = allRecords,
                             indicators = allIndicators,
-                            onOpenRecordPage = { currentRoute = "analysis" }
+                            onOpenRecordPage = { currentRoute = ROUTE_JOURNAL }
                         )
                         }
-                        "analysis" -> {
+                        ROUTE_JOURNAL -> {
                         InsightsScreen(
                             repository = repository,
                             indicatorRepository = indicatorRepository,
@@ -190,7 +193,7 @@ fun ZhiQiApp(lockManager: AppLockManager) {
                             }
                         )
                         }
-                        else -> {
+                        ROUTE_ME -> {
                         MeScreen(
                             repository = repository,
                             indicatorRepository = indicatorRepository,
@@ -199,6 +202,7 @@ fun ZhiQiApp(lockManager: AppLockManager) {
                             onOpenCycleSettings = { showCycleSheet = true }
                         )
                     }
+                        else -> Unit
                     }
                 }
             }
@@ -227,14 +231,11 @@ fun ZhiQiApp(lockManager: AppLockManager) {
         }
 
         if (showRecordSheet && isUnlocked && !showSplash) {
-            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-            ModalBottomSheet(
+            ZhiQiModalSheet(
                 onDismissRequest = {
                     showRecordSheet = false
                     editingLoveRecordId = null
-                },
-                sheetState = sheetState,
-                containerColor = MaterialTheme.colorScheme.surface
+                }
             ) {
                 RecordSheet(
                     initialRecord = editingLoveRecordId?.let { id -> allRecords.firstOrNull { it.id == id } },
@@ -256,14 +257,11 @@ fun ZhiQiApp(lockManager: AppLockManager) {
         }
 
         if (showIndicatorSheet && isUnlocked && !showSplash && recordEntryContext != null) {
-            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-            ModalBottomSheet(
+            ZhiQiModalSheet(
                 onDismissRequest = {
                     recordEntryContext = null
                     showIndicatorSheet = false
-                },
-                sheetState = sheetState,
-                containerColor = MaterialTheme.colorScheme.surface
+                }
             ) {
                 IndicatorSheet(
                     metricKey = recordEntryContext!!,
@@ -295,12 +293,7 @@ fun ZhiQiApp(lockManager: AppLockManager) {
         }
 
         if (showCycleSheet && isUnlocked && !showSplash) {
-            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-            ModalBottomSheet(
-                onDismissRequest = { showCycleSheet = false },
-                sheetState = sheetState,
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
+            ZhiQiModalSheet(onDismissRequest = { showCycleSheet = false }) {
                 CycleSettingsSheet(
                     onSave = {
                         cycleSettingsVersion += 1
@@ -314,12 +307,7 @@ fun ZhiQiApp(lockManager: AppLockManager) {
         }
 
         if (showFirstGuide && isUnlocked && !showSplash) {
-            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-            ModalBottomSheet(
-                onDismissRequest = { showFirstGuide = false },
-                sheetState = sheetState,
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
+            ZhiQiModalSheet(onDismissRequest = { showFirstGuide = false }) {
                 FirstUseGuideSheet(
                     onLater = {
                         onboardingPrefs.edit().putBoolean("completed", true).apply()
@@ -334,27 +322,21 @@ fun ZhiQiApp(lockManager: AppLockManager) {
         }
 
         if (showCycleSavedDialog && isUnlocked && !showSplash) {
-            androidx.compose.material3.AlertDialog(
+            ZhiQiConfirmDialog(
+                title = "保存成功",
+                message = "生理周期已更新，首页提醒已刷新。",
                 onDismissRequest = { showCycleSavedDialog = false },
-                title = { androidx.compose.material3.Text("保存成功") },
-                text = { androidx.compose.material3.Text("生理周期已更新，首页提醒已刷新。") },
-                confirmButton = {
-                    androidx.compose.material3.Button(onClick = { showCycleSavedDialog = false }) {
-                        androidx.compose.material3.Text("确定")
-                    }
-                }
+                onConfirm = { showCycleSavedDialog = false },
+                dismissText = null
             )
         }
 
         if (showDetailSheet && detailRecordId != null && isUnlocked && !showSplash) {
-            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-            ModalBottomSheet(
+            ZhiQiModalSheet(
                 onDismissRequest = {
                     showDetailSheet = false
                     detailRecordId = null
-                },
-                sheetState = sheetState,
-                containerColor = MaterialTheme.colorScheme.surface
+                }
             ) {
                 RecordDetailSheet(
                     repository = repository,
@@ -372,83 +354,64 @@ fun ZhiQiApp(lockManager: AppLockManager) {
 @Composable
 private fun AppBottomBar(
     currentRoute: String,
-    onNavigate: (String) -> Unit,
-    onQuickRecord: () -> Unit
+    onNavigate: (String) -> Unit
 ) {
     val items = listOf(
-        Triple("home", "今日", Icons.Filled.Home),
-        Triple("analysis", "记录", Icons.Filled.CalendarMonth),
-        Triple("insights", "趋势", Icons.Filled.AutoGraph),
-        Triple("me", "安全", Icons.Filled.Person)
+        Triple(ROUTE_HOME, "今日", Icons.Filled.Home),
+        Triple(ROUTE_JOURNAL, "记录", Icons.Filled.CalendarMonth),
+        Triple(ROUTE_TRENDS, "趋势", Icons.Filled.AutoGraph),
+        Triple(ROUTE_ME, "我的", Icons.Filled.Person)
     )
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 18.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
-        val barShape = RoundedCornerShape(36.dp)
-        Row(
+        val barShape = RoundedCornerShape(32.dp)
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth(0.94f)
+                .widthIn(max = 392.dp)
                 .height(74.dp)
                 .shadow(
                     elevation = 24.dp,
                     shape = barShape,
-                    ambientColor = ZhiQiTokens.Primary.copy(alpha = 0.1f),
-                    spotColor = Color.White.copy(alpha = 0.22f)
+                    ambientColor = ZhiQiTokens.Primary.copy(alpha = 0.14f),
+                    spotColor = ZhiQiTokens.Secondary.copy(alpha = 0.12f)
                 )
                 .clip(barShape)
-                .background(Color.White.copy(alpha = 0.62f))
-                .border(1.dp, Color.White.copy(alpha = 0.82f), barShape)
-                .padding(horizontal = 22.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.94f),
+                            ZhiQiTokens.Surface.copy(alpha = 0.84f),
+                            Color(0xFFFFF4E9).copy(alpha = 0.78f)
+                        )
+                    )
+                )
+                .border(1.dp, Color.White.copy(alpha = 0.7f), barShape)
         ) {
-            items.take(2).forEach { (route, label, icon) ->
-                BottomNavItem(
-                    route = route,
-                    label = label,
-                    icon = icon,
-                    selected = currentRoute == route,
-                    onNavigate = onNavigate
-                )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(74.dp)
+                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                items.forEach { (route, label, icon) ->
+                    BottomNavItem(
+                        route = route,
+                        label = label,
+                        icon = icon,
+                        selected = currentRoute == route,
+                        modifier = Modifier.weight(1f),
+                        onNavigate = onNavigate
+                    )
+                }
             }
-            Spacer(modifier = Modifier.size(56.dp))
-            items.drop(2).forEach { (route, label, icon) ->
-                BottomNavItem(
-                    route = route,
-                    label = label,
-                    icon = icon,
-                    selected = currentRoute == route,
-                    onNavigate = onNavigate
-                )
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .offset(y = (-28).dp)
-                .size(62.dp)
-                .shadow(
-                    elevation = 24.dp,
-                    shape = RoundedCornerShape(24.dp),
-                    ambientColor = ZhiQiTokens.Primary.copy(alpha = 0.18f),
-                    spotColor = ZhiQiTokens.PrimaryStrong.copy(alpha = 0.18f)
-                )
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color.White)
-                .border(4.dp, Color.White.copy(alpha = 0.58f), RoundedCornerShape(24.dp))
-                .noRippleClickable(onQuickRecord),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Add,
-                contentDescription = "快速记录",
-                tint = ZhiQiTokens.Primary,
-                modifier = Modifier.size(30.dp)
-            )
         }
     }
 }
@@ -459,20 +422,37 @@ private fun BottomNavItem(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     selected: Boolean,
+    modifier: Modifier = Modifier,
     onNavigate: (String) -> Unit
 ) {
-    Column(
-        modifier = Modifier
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                if (selected) ZhiQiTokens.PrimarySoft.copy(alpha = 0.88f) else Color.Transparent,
+                RoundedCornerShape(22.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = if (selected) Color.White.copy(alpha = 0.72f) else Color.Transparent,
+                shape = RoundedCornerShape(22.dp)
+            )
             .noRippleClickable { onNavigate(route) }
-            .padding(horizontal = 6.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(horizontal = 10.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (selected) ZhiQiTokens.TextPrimary else ZhiQiTokens.TextMuted.copy(alpha = 0.8f),
-            modifier = Modifier.size(if (selected) 25.dp else 23.dp)
+            tint = if (selected) ZhiQiTokens.PrimaryStrong else ZhiQiTokens.TextSecondary,
+            modifier = Modifier.padding(end = 6.dp)
+        )
+        Text(
+            text = label,
+            color = if (selected) ZhiQiTokens.PrimaryStrong else ZhiQiTokens.TextSecondary,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
     }
 }

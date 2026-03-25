@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -70,10 +69,32 @@ fun SettingsScreen(
     }
 
     GlassBackground {
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("设置", style = MaterialTheme.typography.titleLarge)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .glassCard()
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("设置", style = MaterialTheme.typography.headlineSmall, color = ZhiQiTokens.TextPrimary)
+                Text(
+                    "提醒、密码和数据管理都放在这里。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ZhiQiTokens.TextSecondary
+                )
+            }
 
-            Column(modifier = Modifier.glassCard().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .glassCard()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -109,7 +130,13 @@ fun SettingsScreen(
                 )
             }
 
-            Column(modifier = Modifier.glassCard().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .glassCard()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -166,17 +193,27 @@ fun SettingsScreen(
                 }
             }
 
-            Text(
-                text = "一键清除所有数据",
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.clickable { clearStep = 1 }
-            )
-
-            Text(
-                text = "返回",
-                color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.clickable { onBack() }
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .glassCard()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("危险操作", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
+                Text(
+                    text = "一键清除所有数据",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.clickable { clearStep = 1 }
+                )
+                Text(
+                    text = "返回",
+                    color = ZhiQiTokens.PrimaryStrong,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.clickable { onBack() }
+                )
+            }
 
             if (message.isNotBlank()) {
                 Text(message, color = MaterialTheme.colorScheme.secondary)
@@ -190,33 +227,30 @@ fun SettingsScreen(
             2 -> "再次确认，数据不可恢复"
             else -> "最后一次确认，是否继续？"
         }
-        AlertDialog(
+        ZhiQiConfirmDialog(
+            title = title,
+            message = "此操作会清除所有记录、密码和设置，且无法恢复。",
             onDismissRequest = { clearStep = 0 },
-            title = { Text(title) },
-            text = { Text("此操作会清除所有记录、密码和设置，且无法恢复。") },
-            confirmButton = {
-                Button(onClick = {
-                    if (clearStep < 3) {
-                        clearStep += 1
-                    } else {
-                        scope.launch {
-                            withContext(Dispatchers.IO) {
-                                repository.clearAll()
-                                pinManager.clearAll()
-                                CryptoManager(context).clearAll()
-                            }
-                            reminderPrefs.saveEnabled(false)
-                            ReminderScheduler.cancel(context)
-                            remind = false
-                            clearStep = 0
-                            message = "数据已清除"
+            onConfirm = {
+                if (clearStep < 3) {
+                    clearStep += 1
+                } else {
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            repository.clearAll()
+                            pinManager.clearAll()
+                            CryptoManager(context).clearAll()
                         }
+                        reminderPrefs.saveEnabled(false)
+                        ReminderScheduler.cancel(context)
+                        remind = false
+                        clearStep = 0
+                        message = "数据已清除"
                     }
-                }) { Text("继续") }
+                }
             },
-            dismissButton = {
-                Button(onClick = { clearStep = 0 }) { Text("取消") }
-            }
+            confirmText = "继续",
+            destructive = true
         )
     }
 }
@@ -224,18 +258,19 @@ fun SettingsScreen(
 @Composable
 private fun SettingRow(title: String, subtitle: String? = null, onClick: (() -> Unit)? = null) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).clickable(enabled = onClick != null) {
-            onClick?.invoke()
-        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .clickable(enabled = onClick != null) { onClick?.invoke() },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text(title)
+            Text(title, color = ZhiQiTokens.TextPrimary)
             if (subtitle != null) {
-                Text(subtitle, color = MaterialTheme.colorScheme.secondary)
+                Text(subtitle, color = ZhiQiTokens.TextSecondary)
             }
         }
-        Text(">", color = MaterialTheme.colorScheme.secondary)
+        Text(">", color = ZhiQiTokens.TextMuted)
     }
 }

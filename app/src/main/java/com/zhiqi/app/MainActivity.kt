@@ -1,6 +1,7 @@
 package com.zhiqi.app
 
 import android.os.Bundle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -11,26 +12,33 @@ import com.zhiqi.app.ui.ZhiQiApp
 import com.zhiqi.app.ui.ZhiQiTheme
 
 class MainActivity : ComponentActivity() {
-    private lateinit var lockManager: AppLockManager
+    private lateinit var appLockManager: AppLockManager
+    private val appLifecycleObserver = object : DefaultLifecycleObserver {
+        override fun onStart(owner: LifecycleOwner) {
+            appLockManager.onAppForegrounded()
+        }
+
+        override fun onStop(owner: LifecycleOwner) {
+            appLockManager.onAppBackgrounded()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
-        lockManager = AppLockManager(applicationContext)
-        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) {
-                lockManager.onAppForegrounded()
-            }
-
-            override fun onStop(owner: LifecycleOwner) {
-                lockManager.onAppBackgrounded()
-            }
-        })
+        appLockManager = AppLockManager(applicationContext)
+        ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
 
         setContent {
             ZhiQiTheme {
-                ZhiQiApp(lockManager = lockManager)
+                ZhiQiApp(lockManager = appLockManager)
             }
         }
+    }
+
+    override fun onDestroy() {
+        ProcessLifecycleOwner.get().lifecycle.removeObserver(appLifecycleObserver)
+        super.onDestroy()
     }
 }

@@ -13,14 +13,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -115,12 +112,7 @@ fun RecordDetailScreen(
     }
 
     if (showEdit && record != null) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { showEdit = false },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
+        ZhiQiModalSheet(onDismissRequest = { showEdit = false }) {
             RecordSheet(
                 initialRecord = record,
                 onSave = { updated ->
@@ -136,22 +128,19 @@ fun RecordDetailScreen(
     }
 
     if (showDelete && record != null) {
-        AlertDialog(
+        ZhiQiConfirmDialog(
+            title = "确认删除记录？",
+            message = "删除后无法恢复。",
             onDismissRequest = { showDelete = false },
-            title = { Text("确认删除记录？") },
-            text = { Text("删除后无法恢复。") },
-            confirmButton = {
-                Button(onClick = {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        repository.delete(record!!)
-                    }
-                    showDelete = false
-                    onBack()
-                }) { Text("删除") }
+            onConfirm = {
+                CoroutineScope(Dispatchers.IO).launch {
+                    repository.delete(record!!)
+                }
+                showDelete = false
+                onBack()
             },
-            dismissButton = {
-                Button(onClick = { showDelete = false }) { Text("取消") }
-            }
+            confirmText = "删除",
+            destructive = true
         )
     }
 }

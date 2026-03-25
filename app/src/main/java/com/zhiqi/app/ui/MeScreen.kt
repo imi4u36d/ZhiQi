@@ -42,11 +42,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -312,49 +310,39 @@ fun MeScreen(
     }
 
     if (showAlgorithmDialog) {
-        AlertDialog(
+        ZhiQiConfirmDialog(
+            title = "预测依据说明",
+            message = "系统会结合最近经期开始日、周期长度、经期天数和历史记录进行区间预测。\n\n" +
+                "当连续漏记或近期波动较大时，预测范围会扩大并提示补充记录。\n\n" +
+                "建议连续记录 3 个周期，以获得更稳定的趋势结论。",
             onDismissRequest = { showAlgorithmDialog = false },
-            title = { Text("预测依据说明") },
-            text = {
-                Text(
-                    "系统会结合最近经期开始日、周期长度、经期天数和历史记录进行区间预测。\\n\\n" +
-                        "当连续漏记或近期波动较大时，预测范围会扩大并提示补充记录。\\n\\n" +
-                        "建议连续记录 3 个周期，以获得更稳定的趋势结论。"
-                )
-            },
-            confirmButton = {
-                Button(onClick = { showAlgorithmDialog = false }) { Text("我知道了") }
-            }
+            onConfirm = { showAlgorithmDialog = false },
+            confirmText = "我知道了",
+            dismissText = null
         )
     }
 
     if (pendingImportUri != null) {
-        AlertDialog(
+        ZhiQiConfirmDialog(
+            title = "导入备份",
+            message = "导入会覆盖当前本地记录、指标和周期设置。旧版备份可能同时覆盖密码，是否继续？",
             onDismissRequest = { pendingImportUri = null },
-            title = { Text("导入备份") },
-            text = { Text("导入会覆盖当前本地记录、指标和周期设置。旧版备份可能同时覆盖密码，是否继续？") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val uri = pendingImportUri ?: return@Button
-                        pendingImportUri = null
-                        isWorking = true
-                        scope.launch {
-                            runCatching { withContext(Dispatchers.IO) { backupManager.importFrom(uri) } }
-                                .onSuccess { summary ->
-                                    message = "导入完成，恢复 ${summary.recordCount} 条记录、${summary.indicatorCount} 条指标"
-                                }
-                                .onFailure { error ->
-                                    message = error.message ?: "导入失败"
-                                }
-                            isWorking = false
+            onConfirm = {
+                val uri = pendingImportUri ?: return@ZhiQiConfirmDialog
+                pendingImportUri = null
+                isWorking = true
+                scope.launch {
+                    runCatching { withContext(Dispatchers.IO) { backupManager.importFrom(uri) } }
+                        .onSuccess { summary ->
+                            message = "导入完成，恢复 ${summary.recordCount} 条记录、${summary.indicatorCount} 条指标"
                         }
-                    }
-                ) { Text("继续导入") }
+                        .onFailure { error ->
+                            message = error.message ?: "导入失败"
+                        }
+                    isWorking = false
+                }
             },
-            dismissButton = {
-                Button(onClick = { pendingImportUri = null }) { Text("取消") }
-            }
+            confirmText = "继续导入"
         )
     }
 
@@ -364,53 +352,45 @@ fun MeScreen(
             2 -> "再次确认，数据不可恢复"
             else -> "最后一次确认，是否继续？"
         }
-        AlertDialog(
+        ZhiQiConfirmDialog(
+            title = title,
+            message = "此操作会清除所有记录、密码和设置，且无法恢复。",
             onDismissRequest = { clearStep = 0 },
-            title = { Text(title) },
-            text = { Text("此操作会清除所有记录、密码和设置，且无法恢复。") },
-            confirmButton = {
-                Button(onClick = {
-                    if (clearStep < 3) {
-                        clearStep += 1
-                    } else {
-                        isWorking = true
-                        scope.launch {
-                            withContext(Dispatchers.IO) {
-                                repository.clearAll()
-                                indicatorRepository.clearAll()
-                                pinManager.clearAll()
-                                CryptoManager(context).clearAll()
-                                cycleManager.restoreSnapshot(null)
-                            }
-                            reminderPrefs.save(false, reminderTime.value)
-                            reminderPrefs.saveAdvanceDays(3)
-                            ReminderScheduler.cancel(context)
-                            remind = false
-                            clearStep = 0
-                            message = "数据已清除"
-                            isWorking = false
+            onConfirm = {
+                if (clearStep < 3) {
+                    clearStep += 1
+                } else {
+                    isWorking = true
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            repository.clearAll()
+                            indicatorRepository.clearAll()
+                            pinManager.clearAll()
+                            CryptoManager(context).clearAll()
+                            cycleManager.restoreSnapshot(null)
                         }
+                        reminderPrefs.save(false, reminderTime.value)
+                        reminderPrefs.saveAdvanceDays(3)
+                        ReminderScheduler.cancel(context)
+                        remind = false
+                        clearStep = 0
+                        message = "数据已清除"
+                        isWorking = false
                     }
-                }) { Text("继续") }
+                }
             },
-            dismissButton = {
-                Button(onClick = { clearStep = 0 }) { Text("取消") }
-            }
+            confirmText = "继续",
+            destructive = true
         )
     }
 
     if (showUnlockSheet && passwordEnabled) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         var oldPin by remember { mutableStateOf("") }
         var newPin by remember { mutableStateOf("") }
         var confirmPin by remember { mutableStateOf("") }
         var pinError by remember { mutableStateOf<String?>(null) }
 
-        ModalBottomSheet(
-            onDismissRequest = { showUnlockSheet = false },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
+        ZhiQiModalSheet(onDismissRequest = { showUnlockSheet = false }) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -475,12 +455,7 @@ fun MeScreen(
     }
 
     if (showReminderSheet) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { showReminderSheet = false },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
+        ZhiQiModalSheet(onDismissRequest = { showReminderSheet = false }) {
             PeriodReminderConfigSheet(
                 initialTime = reminderTime.value,
                 initialAdvanceDays = reminderAdvanceDays.value,
@@ -516,14 +491,14 @@ private fun ProfileHeader(
         listOf(
             ZhiQiTokens.PrimarySoft,
             Color.White,
-            ZhiQiTokens.AccentStrongerSoft
+            ZhiQiTokens.TertiarySoft
         )
     )
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .glassCard()
             .background(brush, cardShape)
-            .border(1.dp, Color.White.copy(alpha = 0.78f), cardShape)
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
@@ -563,7 +538,7 @@ private fun ProfileHeader(
             }
             Box(
                 modifier = Modifier
-                    .background(Color.White.copy(alpha = 0.82f), RoundedCornerShape(999.dp))
+                    .glassPanel(shape = RoundedCornerShape(999.dp), backgroundAlpha = 0.88f, borderAlpha = 0.84f)
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
@@ -593,8 +568,7 @@ private fun ProfileHeader(
 private fun SummaryPill(label: String, value: String, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .background(Color.White.copy(alpha = 0.72f), RoundedCornerShape(22.dp))
-            .border(1.dp, Color.White.copy(alpha = 0.72f), RoundedCornerShape(22.dp))
+            .glassPanel(shape = RoundedCornerShape(22.dp), backgroundAlpha = 0.82f, borderAlpha = 0.84f)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
@@ -617,7 +591,7 @@ private fun SectionCard(
         content = {
             Box(
                 modifier = Modifier
-                    .background(Color.White.copy(alpha = 0.82f), RoundedCornerShape(999.dp))
+                    .glassPanel(shape = RoundedCornerShape(999.dp), backgroundAlpha = 0.88f, borderAlpha = 0.84f)
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(title, style = MaterialTheme.typography.labelMedium, color = ZhiQiTokens.TextPrimary, fontWeight = FontWeight.SemiBold)
@@ -638,8 +612,7 @@ private fun ReminderRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ZhiQiTokens.SurfaceSoft, RoundedCornerShape(20.dp))
-            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(20.dp))
+            .glassPanel(shape = RoundedCornerShape(24.dp), backgroundAlpha = 0.78f, borderAlpha = 0.82f)
             .clickable { onOpenConfig() }
             .padding(horizontal = 12.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -649,8 +622,7 @@ private fun ReminderRow(
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .background(ZhiQiTokens.AccentStrongerSoft, RoundedCornerShape(14.dp))
-                    .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(14.dp)),
+                    .glassPanel(shape = RoundedCornerShape(14.dp), backgroundAlpha = 0.88f, borderAlpha = 0.82f),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.Notifications, contentDescription = "提醒", tint = ZhiQiTokens.Primary)
@@ -667,7 +639,7 @@ private fun ReminderRow(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "设置",
-                color = ZhiQiTokens.Primary,
+                color = ZhiQiTokens.PrimaryStrong,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.clickable { onOpenConfig() }
             )
@@ -968,8 +940,7 @@ private fun ReminderPrivacyRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ZhiQiTokens.SurfaceSoft, RoundedCornerShape(20.dp))
-            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(20.dp))
+            .glassPanel(shape = RoundedCornerShape(24.dp), backgroundAlpha = 0.78f, borderAlpha = 0.82f)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -978,8 +949,7 @@ private fun ReminderPrivacyRow(
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .background(ZhiQiTokens.AccentSoft, RoundedCornerShape(14.dp))
-                    .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(14.dp)),
+                    .glassPanel(shape = RoundedCornerShape(14.dp), backgroundAlpha = 0.88f, borderAlpha = 0.82f),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.Notifications, contentDescription = "通知隐私", tint = ZhiQiTokens.Primary)
@@ -1006,8 +976,7 @@ private fun PasswordToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ZhiQiTokens.SurfaceSoft, RoundedCornerShape(20.dp))
-            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(20.dp))
+            .glassPanel(shape = RoundedCornerShape(24.dp), backgroundAlpha = 0.78f, borderAlpha = 0.82f)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -1016,8 +985,7 @@ private fun PasswordToggleRow(
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .background(ZhiQiTokens.PrimarySoft, RoundedCornerShape(14.dp))
-                    .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(14.dp)),
+                    .glassPanel(shape = RoundedCornerShape(14.dp), backgroundAlpha = 0.88f, borderAlpha = 0.82f),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.Lock, contentDescription = "密码解锁", tint = ZhiQiTokens.Primary)
@@ -1050,8 +1018,7 @@ private fun DataStatusBlock(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ZhiQiTokens.SurfaceSoft, RoundedCornerShape(18.dp))
-            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(18.dp))
+            .glassPanel(shape = RoundedCornerShape(24.dp), backgroundAlpha = 0.78f, borderAlpha = 0.82f)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -1075,8 +1042,7 @@ private fun MenuRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ZhiQiTokens.SurfaceSoft, RoundedCornerShape(20.dp))
-            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(20.dp))
+            .glassPanel(shape = RoundedCornerShape(24.dp), backgroundAlpha = 0.78f, borderAlpha = 0.82f)
             .padding(horizontal = 12.dp, vertical = 12.dp)
             .clickable(enabled = enabled && onClick != null) { onClick?.invoke() },
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1183,8 +1149,8 @@ fun CycleSettingsSheet(
             Text(
                 text = "取消",
                 style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFF666D79),
-                modifier = Modifier.clickable { onCancel() }.padding(vertical = 6.dp)
+                color = ZhiQiTokens.TextSecondary,
+                modifier = Modifier.noRippleClickable(onCancel).padding(vertical = 6.dp)
             )
             Text("生理周期", style = MaterialTheme.typography.titleMedium, color = ZhiQiTokens.TextPrimary)
             Box(modifier = Modifier.size(40.dp))
@@ -1271,9 +1237,13 @@ fun CycleSettingsSheet(
 
             Text(
                 text = "恢复推荐值",
-                color = ZhiQiTokens.Primary,
+                color = ZhiQiTokens.PrimaryStrong,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .glassPanel(shape = RoundedCornerShape(18.dp), backgroundAlpha = 0.82f, borderAlpha = 0.82f)
                     .clickable {
                         cycleDays = 28
                         periodDays = 5
@@ -1306,6 +1276,7 @@ private fun CycleSummaryCard(
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        MeBadge(text = "CYCLE", background = ZhiQiTokens.PrimarySoft, textColor = ZhiQiTokens.PrimaryStrong)
         Text(
             text = "${cycleDays}天周期 · 经期${periodDays}天",
             style = MaterialTheme.typography.titleMedium,
@@ -1321,6 +1292,27 @@ private fun CycleSummaryCard(
             text = "下次预计：${formatCycleMonthDay(nextStart)}",
             style = MaterialTheme.typography.bodySmall,
             color = ZhiQiTokens.TextSecondary
+        )
+    }
+}
+
+@Composable
+private fun MeBadge(
+    text: String,
+    background: Color = ZhiQiTokens.PrimarySoft,
+    textColor: Color = ZhiQiTokens.Primary
+) {
+    Box(
+        modifier = Modifier
+            .glassPanel(shape = RoundedCornerShape(16.dp), backgroundAlpha = 0.9f, borderAlpha = 0.82f)
+            .background(background, RoundedCornerShape(16.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = textColor,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }
@@ -1348,7 +1340,7 @@ private fun CycleSettingRow(
             Icon(
                 Icons.Filled.ChevronRight,
                 contentDescription = title,
-                tint = Color(0xFFB3B8C2)
+                tint = ZhiQiTokens.TextMuted
             )
         }
     }

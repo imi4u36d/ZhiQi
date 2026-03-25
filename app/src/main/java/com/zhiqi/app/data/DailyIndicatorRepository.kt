@@ -2,17 +2,17 @@ package com.zhiqi.app.data
 
 import kotlinx.coroutines.flow.Flow
 
-class DailyIndicatorRepository(private val dao: DailyIndicatorDao) {
-    fun indicatorsByDate(dateKey: String): Flow<List<DailyIndicatorEntity>> = dao.getByDateFlow(dateKey)
+class DailyIndicatorRepository(private val indicatorDao: DailyIndicatorDao) {
+    fun indicatorsByDate(dateKey: String): Flow<List<DailyIndicatorEntity>> = indicatorDao.observeByDate(dateKey)
 
-    fun allIndicators(): Flow<List<DailyIndicatorEntity>> = dao.getAllFlow()
+    fun allIndicators(): Flow<List<DailyIndicatorEntity>> = indicatorDao.observeAll()
 
-    suspend fun getAll(): List<DailyIndicatorEntity> = dao.getAll()
+    suspend fun getAll(): List<DailyIndicatorEntity> = indicatorDao.snapshotAll()
 
-    suspend fun save(indicator: DailyIndicatorEntity): Long = dao.upsert(indicator)
+    suspend fun save(indicator: DailyIndicatorEntity): Long = indicatorDao.upsert(indicator)
 
     suspend fun deleteByDateAndMetric(dateKey: String, metricKey: String): Int =
-        dao.deleteByDateAndMetric(dateKey, metricKey)
+        indicatorDao.deleteByDateAndMetricKey(dateKey, metricKey)
 
-    suspend fun clearAll() = dao.clearAll()
+    suspend fun clearAll() = indicatorDao.clearAll()
 }

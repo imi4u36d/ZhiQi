@@ -7,6 +7,7 @@ data class IndicatorOption(
     val label: String
 )
 
+// metricKey 是持久化用的原始键名，label 只是界面展示文案；不要随意重命名存储键。
 fun metricTitle(metricKey: String): String = when (metricKey) {
     "爱爱" -> "爱爱"
     "流量" -> "流量"

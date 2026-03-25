@@ -20,13 +20,13 @@ interface RecordDao {
     suspend fun delete(record: RecordEntity)
 
     @Query("SELECT * FROM records ORDER BY timeMillis DESC")
-    fun getAllFlow(): Flow<List<RecordEntity>>
+    fun observeAll(): Flow<List<RecordEntity>>
 
     @Query("SELECT * FROM records ORDER BY timeMillis DESC")
-    suspend fun getAll(): List<RecordEntity>
+    suspend fun snapshotAll(): List<RecordEntity>
 
     @Query("SELECT * FROM records WHERE id = :id")
-    suspend fun getById(id: Long): RecordEntity?
+    suspend fun findById(id: Long): RecordEntity?
 
     @Query("DELETE FROM records")
     suspend fun clearAll()

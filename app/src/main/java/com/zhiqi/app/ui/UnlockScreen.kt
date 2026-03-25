@@ -64,6 +64,7 @@ fun UnlockScreen(
     }
 
     fun handleCompletePin(input: String) {
+        // 首次进入如果还没有 PIN，这里直接把输入写成新密码；否则走校验流程。
         if (!pinManager.isPinSet()) {
             pinManager.setPin(input)
             onUnlocked()

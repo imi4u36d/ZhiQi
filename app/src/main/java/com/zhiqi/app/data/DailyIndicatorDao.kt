@@ -12,16 +12,16 @@ interface DailyIndicatorDao {
     suspend fun upsert(indicator: DailyIndicatorEntity): Long
 
     @Query("SELECT * FROM daily_indicators WHERE dateKey = :dateKey ORDER BY updatedAt DESC")
-    fun getByDateFlow(dateKey: String): Flow<List<DailyIndicatorEntity>>
+    fun observeByDate(dateKey: String): Flow<List<DailyIndicatorEntity>>
 
     @Query("SELECT * FROM daily_indicators ORDER BY updatedAt DESC")
-    fun getAllFlow(): Flow<List<DailyIndicatorEntity>>
+    fun observeAll(): Flow<List<DailyIndicatorEntity>>
 
     @Query("SELECT * FROM daily_indicators ORDER BY updatedAt DESC")
-    suspend fun getAll(): List<DailyIndicatorEntity>
+    suspend fun snapshotAll(): List<DailyIndicatorEntity>
 
     @Query("DELETE FROM daily_indicators WHERE dateKey = :dateKey AND metricKey = :metricKey")
-    suspend fun deleteByDateAndMetric(dateKey: String, metricKey: String): Int
+    suspend fun deleteByDateAndMetricKey(dateKey: String, metricKey: String): Int
 
     @Query("DELETE FROM daily_indicators")
     suspend fun clearAll()

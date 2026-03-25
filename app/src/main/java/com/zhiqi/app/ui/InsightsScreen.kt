@@ -42,12 +42,9 @@ import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -281,37 +278,22 @@ fun InsightsScreen(
             "${formatMonthDay(request.dateMillis)} 已设置为$oldLabel，是否覆盖为$newLabel？"
         }
         val scope = androidx.compose.runtime.rememberCoroutineScope()
-        AlertDialog(
+        ZhiQiConfirmDialog(
+            title = "覆盖已有记录",
+            message = message,
             onDismissRequest = { pendingOverwrite = null },
-            title = { Text("覆盖已有记录") },
-            text = { Text(message) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            persistPeriodStatus(request.dateMillis, request.newOption == PERIOD_STARTED)
-                            pendingOverwrite = null
-                        }
-                    }
-                ) {
-                    Text("覆盖")
+            onConfirm = {
+                scope.launch {
+                    persistPeriodStatus(request.dateMillis, request.newOption == PERIOD_STARTED)
+                    pendingOverwrite = null
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { pendingOverwrite = null }) {
-                    Text("取消")
-                }
-            }
+            confirmText = "覆盖"
         )
     }
 
     if (showAnalysisSheet) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { showAnalysisSheet = false },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
+        ZhiQiModalSheet(onDismissRequest = { showAnalysisSheet = false }) {
             CycleInsightSheet(
                 insight = cycleInsight,
                 onClose = { showAnalysisSheet = false }
@@ -350,44 +332,6 @@ private fun CalendarPanel(
             .padding(horizontal = 18.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = "JOURNAL",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = ZhiQiTokens.PrimaryStrong,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "花园日历",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = ZhiQiTokens.TextPrimary,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "左右滑动切换月份，像翻阅情绪和身体的小档案。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = ZhiQiTokens.TextSecondary
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(Color.White.copy(alpha = 0.84f), RoundedCornerShape(22.dp))
-                    .border(1.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(22.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ill_brand_blossom),
-                    contentDescription = "品牌插画",
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-        }
         RecordCalendarHeader(
             title = headerState.title,
             selectedDateMillis = selectedDateMillis,
@@ -463,8 +407,7 @@ private fun RecordCalendarHeader(
             }
             Box(
                 modifier = Modifier
-                    .background(ZhiQiTokens.PrimarySoft, RoundedCornerShape(16.dp))
-                    .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(16.dp))
+                    .glassPanel(shape = RoundedCornerShape(16.dp), backgroundAlpha = 0.88f, borderAlpha = 0.82f)
                     .noRippleClickable(onBackToToday)
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
@@ -715,10 +658,6 @@ private fun InsightActionCard(onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .glassCard()
-            .background(
-                Color.White.copy(alpha = 0.14f),
-                RoundedCornerShape(34.dp)
-            )
             .padding(horizontal = 18.dp, vertical = 18.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -727,8 +666,7 @@ private fun InsightActionCard(onClick: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .background(Color.White.copy(alpha = 0.82f), RoundedCornerShape(18.dp))
-                    .border(1.dp, Color.White.copy(alpha = 0.76f), RoundedCornerShape(18.dp)),
+                    .glassPanel(shape = RoundedCornerShape(18.dp), backgroundAlpha = 0.88f, borderAlpha = 0.82f),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.AutoGraph, contentDescription = "规律解读", tint = PHASE_COLOR_FERTILE)
@@ -740,13 +678,33 @@ private fun InsightActionCard(onClick: () -> Unit) {
         }
         Box(
             modifier = Modifier
-                .background(Color.White.copy(alpha = 0.86f), RoundedCornerShape(20.dp))
-                .border(1.dp, Color.White.copy(alpha = 0.82f), RoundedCornerShape(20.dp))
+                .glassPanel(shape = RoundedCornerShape(20.dp), backgroundAlpha = 0.88f, borderAlpha = 0.84f)
                 .noRippleClickable(onClick)
                 .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             Text("去查看", color = PHASE_COLOR_FERTILE, style = MaterialTheme.typography.titleSmall)
         }
+    }
+}
+
+@Composable
+private fun InsightBadge(
+    text: String,
+    background: Color = ZhiQiTokens.PrimarySoft,
+    textColor: Color = ZhiQiTokens.Primary
+) {
+    Box(
+        modifier = Modifier
+            .glassPanel(shape = RoundedCornerShape(16.dp), backgroundAlpha = 0.9f, borderAlpha = 0.82f)
+            .background(background, RoundedCornerShape(16.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = textColor,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
@@ -817,8 +775,7 @@ private fun PeriodToggleCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ZhiQiTokens.SurfaceSoft, RoundedCornerShape(18.dp))
-            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(18.dp))
+            .glassPanel(shape = RoundedCornerShape(18.dp), backgroundAlpha = 0.74f, borderAlpha = 0.82f)
             .padding(horizontal = 14.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -842,10 +799,14 @@ private fun ToggleButton(text: String, active: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .background(
-                if (active) ZhiQiTokens.Primary else ZhiQiTokens.Surface,
+                if (active) ZhiQiTokens.Primary.copy(alpha = 0.92f) else Color.White.copy(alpha = 0.84f),
                 RoundedCornerShape(14.dp)
             )
-            .border(1.dp, if (active) ZhiQiTokens.Primary else ZhiQiTokens.Border, RoundedCornerShape(14.dp))
+            .border(
+                1.dp,
+                if (active) ZhiQiTokens.Primary.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.82f),
+                RoundedCornerShape(14.dp)
+            )
             .noRippleClickable(onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
@@ -929,8 +890,7 @@ private fun RecordEntryCard(
 
     Column(
         modifier = modifier
-            .background(ZhiQiTokens.SurfaceSoft, RoundedCornerShape(22.dp))
-            .border(1.dp, ZhiQiTokens.Border, RoundedCornerShape(22.dp))
+            .glassPanel(shape = RoundedCornerShape(22.dp), backgroundAlpha = 0.74f, borderAlpha = 0.82f)
             .noRippleClickable { onAddRecord(item.metricKey) }
             .padding(horizontal = 14.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -956,8 +916,7 @@ private fun RecordEntryCard(
             Box(
                 modifier = Modifier
                     .size(30.dp)
-                    .background(ZhiQiTokens.Surface, CircleShape)
-                    .border(1.dp, ZhiQiTokens.BorderStrong, CircleShape),
+                    .glassPanel(shape = CircleShape, backgroundAlpha = 0.92f, borderAlpha = 0.86f),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.Add, contentDescription = item.title, tint = ZhiQiTokens.Primary, modifier = Modifier.size(16.dp))

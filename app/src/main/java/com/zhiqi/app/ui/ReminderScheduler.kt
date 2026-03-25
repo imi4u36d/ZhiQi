@@ -85,6 +85,7 @@ object ReminderScheduler {
 
     fun schedule(context: Context, reminderTime: String) {
         ensureChannel(context)
+        // WorkManager 只负责“每天重复”，首次触发时间通过 initial delay 对齐到用户选择的时刻。
         val initialDelay = computeInitialDelayMillis(reminderTime)
         val request = PeriodicWorkRequestBuilder<DailyReminderWorker>(
             REMINDER_REPEAT_HOURS,
@@ -158,6 +159,7 @@ object ReminderScheduler {
             ensureChannel(applicationContext)
             val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
                 ?: return Result.retry()
+            // 只有能推导出下一次月经开始日，提前提醒才有意义；推导失败时静默返回。
             val daysUntil = computeDaysUntilNextPeriod(applicationContext, System.currentTimeMillis())
             val inAdvanceWindow = daysUntil != null && daysUntil in 0..prefs.reminderAdvanceDays()
             if (!inAdvanceWindow) return Result.success()
@@ -193,6 +195,7 @@ object ReminderScheduler {
         val cycleDays = cycleManager.cycleLengthDays().coerceIn(21, 45)
         val today = startOfDay(nowMillis)
         var nextStart = anchorStart
+        // 循环向前补齐到今天，避免只用一次起始日造成跨周期误差。
         var guard = 0
         while (nextStart < today && guard < 240) {
             nextStart += cycleDays * DAY_MILLIS
@@ -212,14 +215,15 @@ object ReminderScheduler {
             ?.let(::startOfDay)
             ?: 0L
         val today = startOfDay(nowMillis)
-        val latestRecordStart = latestPeriodStartFromIndicators(context, today)
-        val anchor = maxOf(configuredStart, latestRecordStart)
+        // 备份导入或手动补记后，指标表里的开始日可能比设置项更接近真实情况，因此取较新的锚点。
+        val latestRecordedStart = latestPeriodStartFromIndicators(context, today)
+        val anchor = maxOf(configuredStart, latestRecordedStart)
         return anchor.takeIf { it > 0L }
     }
 
     private suspend fun latestPeriodStartFromIndicators(context: Context, maxDayMillis: Long): Long {
         val dao = DatabaseProvider.get(context).dailyIndicatorDao()
-        return dao.getAll()
+        return dao.snapshotAll()
             .asSequence()
             .filter { it.metricKey == "月经状态" && it.optionValue == "start" }
             .map { parseDayKey(it.dateKey) }

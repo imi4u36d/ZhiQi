@@ -21,6 +21,7 @@ class BackupManager(
     suspend fun exportTo(uri: Uri): BackupSummary {
         val records = repository.getAll()
         val indicators = indicatorRepository.getAll()
+        // 导出默认不包含 PIN 明文快照，避免备份文件本身成为敏感数据载体。
         val payload = BackupPayload(
             version = BACKUP_VERSION,
             exportedAtMillis = System.currentTimeMillis(),
@@ -65,6 +66,7 @@ class BackupManager(
     }
 
     companion object {
+        // 当前版本同时兼容旧导出：v1 没有显式 pin 字段，v2 才开始携带更多状态。
         private const val BACKUP_VERSION = 2
     }
 }
@@ -181,6 +183,7 @@ private data class BackupPayload(
 
             val cycleJson = json.optJSONObject("cycleSettings") ?: JSONObject()
             val pinJson = json.optJSONObject("pin") ?: JSONObject()
+            // 旧版本备份可能没有 pin 块；缺省时按“无密码快照”处理。
             val pin = if (pinJson.length() == 0) {
                 null
             } else {

@@ -52,6 +52,7 @@ fun IndicatorSheet(
 ) {
     val accent = metricAccent(metricKey)
     val options = metricOptions(metricKey)
+    val usesFreeTextInput = supportsFreeTextInput(metricKey)
     var selected by remember(metricKey, initialIndicator?.optionValue) {
         mutableStateOf(initialIndicator?.optionValue)
     }
@@ -93,7 +94,8 @@ fun IndicatorSheet(
                         "体温", "体重", "日记" -> customValue.trim().takeIf { it.isNotBlank() } ?: return@noRippleClickable
                         else -> selected
                     }
-                    if (metricKey != "体温" && metricKey != "体重" && metricKey != "日记" && value == null) {
+                    // 只有下拉/卡片类指标允许“清空即删除”；体温、体重、日记需要保留文本内容。
+                    if (!usesFreeTextInput && value == null) {
                         onClear(dateKey, metricKey)
                         return@noRippleClickable
                     }
@@ -116,7 +118,7 @@ fun IndicatorSheet(
             )
         }
 
-        if (metricKey == "体温" || metricKey == "体重" || metricKey == "日记") {
+        if (usesFreeTextInput) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -187,6 +189,10 @@ fun IndicatorSheet(
             }
         }
     }
+}
+
+private fun supportsFreeTextInput(metricKey: String): Boolean {
+    return metricKey == "体温" || metricKey == "体重" || metricKey == "日记"
 }
 
 @Composable

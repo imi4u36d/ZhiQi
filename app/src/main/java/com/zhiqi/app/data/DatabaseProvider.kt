@@ -10,24 +10,30 @@ import com.zhiqi.app.security.CryptoManager
 
 object DatabaseProvider {
     @Volatile private var instance: AppDatabase? = null
+    private const val DATABASE_NAME = "zhiqi.db"
 
     fun get(context: Context): AppDatabase {
+        val appContext = context.applicationContext
         return instance ?: synchronized(this) {
-            instance ?: build(context).also { instance = it }
+            instance ?: buildDatabase(appContext).also { instance = it }
         }
     }
 
-    private fun build(context: Context): AppDatabase {
-        SQLiteDatabase.loadLibs(context)
-        val passphrase = CryptoManager(context).getOrCreateDbPassphrase()
-        val factory = SupportFactory(SQLiteDatabase.getBytes(passphrase.toCharArray()))
-        return Room.databaseBuilder(context, AppDatabase::class.java, "zhiqi.db")
-            .openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2)
+    private fun buildDatabase(context: Context): AppDatabase {
+        val supportFactory = createSupportFactory(context)
+        return Room.databaseBuilder(context, AppDatabase::class.java, DATABASE_NAME)
+            .openHelperFactory(supportFactory)
+            .addMigrations(MIGRATION_1_TO_2)
             .build()
     }
 
-    private val MIGRATION_1_2 = object : Migration(1, 2) {
+    private fun createSupportFactory(context: Context): SupportFactory {
+        SQLiteDatabase.loadLibs(context)
+        val passphrase = CryptoManager(context).getOrCreateDbPassphrase()
+        return SupportFactory(SQLiteDatabase.getBytes(passphrase.toCharArray()))
+    }
+
+    private val MIGRATION_1_TO_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(
                 """

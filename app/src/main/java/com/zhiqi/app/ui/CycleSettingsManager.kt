@@ -47,6 +47,7 @@ class CycleSettingsManager(context: Context) {
     }
 
     fun restoreSnapshot(snapshot: CycleSettingsSnapshot?) {
+        // 空快照表示“未配置”或旧备份缺少周期设置，恢复时要显式清空本地值。
         if (snapshot == null || !snapshot.configured) {
             prefs.edit().clear().apply()
             CycleWidgetProvider.refresh(appContext)

@@ -141,11 +141,13 @@ fun RecordSheet(
             error = "请选择行为类型"
             return
         }
+        // 同房记录的日期由外层入口控制，这里只修正具体时刻，避免跨天误写。
         val finalTimeMillis = if (isLoveEntry && initialRecord == null) {
             alignTimeToDate(selectedTimeMillis, initialTimeMillis)
         } else {
             selectedTimeMillis
         }
+        // 只接受最近一年的时间，降低异常回填和误触造成的噪声。
         val oneYearAgo = System.currentTimeMillis() - 365L * 24 * 60 * 60 * 1000
         if (finalTimeMillis !in oneYearAgo..System.currentTimeMillis()) {
             error = "记录时间需在最近一年内"

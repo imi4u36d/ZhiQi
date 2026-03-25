@@ -14,27 +14,42 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
+import com.zhiqi.app.ui.designsystem.AppRadii
 
 object ZhiQiTokens {
-    val Primary = Color(0xFFF07FA5)
-    val PrimaryStrong = Color(0xFFE35D8F)
-    val PrimarySoft = Color(0xFFFFE3EC)
-    val AccentSoft = Color(0xFFFFF7D8)
-    val AccentStrongerSoft = Color(0xFFDFF7F1)
+    // Sunset garden palette
+    val Primary = Color(0xFFE86D72)
+    val PrimaryStrong = Color(0xFFD4525F)
+    val PrimarySoft = Color(0xFFFFE5E3)
 
-    val TextPrimary = Color(0xFF1E293B)
-    val TextSecondary = Color(0xFF64748B)
-    val TextMuted = Color(0xFF94A3B8)
+    val Secondary = Color(0xFFCF9731)
+    val SecondarySoft = Color(0xFFF6E3B7)
 
-    val BackgroundTop = Color(0xFFFFF8FB)
-    val BackgroundBottom = Color(0xFFF5F7FF)
+    val Tertiary = Color(0xFF607D90)
+    val TertiarySoft = Color(0xFFDDE9EE)
 
-    val Surface = Color(0xFFFFFFFF)
-    val SurfaceSoft = Color(0xFFF8FAFC)
-    val Border = Color(0xFFE2E8F0)
-    val BorderStrong = Color(0xFFD7DFEA)
+    // Backward-compatible aliases used across existing screens
+    val AccentSoft = SecondarySoft
+    val AccentStrongerSoft = TertiarySoft
 
-    val Danger = Color(0xFFEF6F7E)
+    val TextPrimary = Color(0xFF233042)
+    val TextSecondary = Color(0xFF667A8A)
+    val TextMuted = Color(0xFFA2AFBA)
+
+    val Background = Color(0xFFFDF1E3)
+    val Surface = Color(0xFFFFFBF6)
+    val SurfaceSoft = Color(0xFFF8EFE4)
+
+    val Border = Color(0xFFE9D6C0)
+    val BorderStrong = Color(0xFFD9C0A5)
+
+    val Danger = Color(0xFFD96A74)
+
+    // Phase Colors
+    val PhaseMenstrual = Color(0xFFE8949E)
+    val PhaseFollicular = Color(0xFF9CB9D2)
+    val PhaseFertile = Secondary
+    val PhaseLuteal = Color(0xFFD6C1A0)
 }
 
 private val LightColors = lightColorScheme(
@@ -42,17 +57,17 @@ private val LightColors = lightColorScheme(
     onPrimary = Color.White,
     primaryContainer = ZhiQiTokens.PrimarySoft,
     onPrimaryContainer = ZhiQiTokens.PrimaryStrong,
-    secondary = ZhiQiTokens.PrimaryStrong,
+    secondary = ZhiQiTokens.Secondary,
     onSecondary = Color.White,
-    secondaryContainer = ZhiQiTokens.AccentSoft,
+    secondaryContainer = ZhiQiTokens.SecondarySoft,
     onSecondaryContainer = ZhiQiTokens.TextPrimary,
-    tertiary = Color(0xFF14B8A6),
+    tertiary = ZhiQiTokens.Tertiary,
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFDBF7F1),
-    onTertiaryContainer = Color(0xFF0F766E),
+    tertiaryContainer = ZhiQiTokens.TertiarySoft,
+    onTertiaryContainer = Color(0xFF5D7A9A),
     error = ZhiQiTokens.Danger,
     onError = Color.White,
-    background = ZhiQiTokens.BackgroundTop,
+    background = ZhiQiTokens.Background,
     onBackground = ZhiQiTokens.TextPrimary,
     surface = ZhiQiTokens.Surface,
     onSurface = ZhiQiTokens.TextPrimary,
@@ -138,11 +153,11 @@ private val AppTypography = Typography(
 )
 
 private val AppShapes = Shapes(
-    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
-    small = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
-    medium = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
-    large = androidx.compose.foundation.shape.RoundedCornerShape(30.dp),
-    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(38.dp)
+    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(AppRadii.small),
+    small = androidx.compose.foundation.shape.RoundedCornerShape(AppRadii.small),
+    medium = androidx.compose.foundation.shape.RoundedCornerShape(AppRadii.medium),
+    large = androidx.compose.foundation.shape.RoundedCornerShape(AppRadii.large),
+    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(AppRadii.sheet)
 )
 
 private fun TextStyle.scaleBy(scale: Float): TextStyle {

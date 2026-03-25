@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,8 +18,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import com.zhiqi.app.ui.designsystem.AppRadii
+import com.zhiqi.app.ui.designsystem.AppSpacing
 
 @Composable
 fun GlassBackground(content: @Composable () -> Unit) {
@@ -28,56 +32,97 @@ fun GlassBackground(content: @Composable () -> Unit) {
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        ZhiQiTokens.BackgroundTop,
-                        Color.White,
-                        ZhiQiTokens.PrimarySoft.copy(alpha = 0.52f),
-                        ZhiQiTokens.BackgroundBottom
+                        Color(0xFFFFE1D2),
+                        Color(0xFFFFF0D9),
+                        Color(0xFFE6F0E8)
                     )
                 )
             )
-            .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer(alpha = 0.9f)
+                .graphicsLayer(alpha = 0.92f)
                 .background(
                     Brush.radialGradient(
                         colors = listOf(
-                            ZhiQiTokens.PrimarySoft.copy(alpha = 0.34f),
-                            ZhiQiTokens.AccentStrongerSoft.copy(alpha = 0.34f),
-                            Color(0xFFFFF5CC).copy(alpha = 0.28f),
-                            Color(0xFFDDE8FF).copy(alpha = 0.24f),
+                            ZhiQiTokens.PrimarySoft.copy(alpha = 0.92f),
+                            Color(0xFFFFD7C5).copy(alpha = 0.74f),
+                            ZhiQiTokens.SecondarySoft.copy(alpha = 0.38f),
                             Color.Transparent
                         ),
+                        center = androidx.compose.ui.geometry.Offset(120f, 140f),
+                        radius = 860f
+                    )
+                )
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(alpha = 0.88f)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            ZhiQiTokens.TertiarySoft.copy(alpha = 0.86f),
+                            Color(0xFFD7E6D9).copy(alpha = 0.5f),
+                            Color.Transparent
+                        ),
+                        center = androidx.compose.ui.geometry.Offset(920f, 1540f),
                         radius = 1180f
                     )
                 )
         )
-        content()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = AppSpacing.page, vertical = AppSpacing.small)
+        ) {
+            content()
+        }
     }
 }
 
 fun Modifier.glassCard(): Modifier {
-    val shape = RoundedCornerShape(34.dp)
+    val shape = RoundedCornerShape(AppRadii.large)
     return this
         .shadow(
-            elevation = 18.dp,
+            elevation = 24.dp,
             shape = shape,
-            ambientColor = ZhiQiTokens.Primary.copy(alpha = 0.08f),
-            spotColor = Color.White.copy(alpha = 0.18f)
+            ambientColor = ZhiQiTokens.Primary.copy(alpha = 0.12f),
+            spotColor = ZhiQiTokens.Secondary.copy(alpha = 0.16f)
         )
         .clip(shape)
         .background(
-            Brush.linearGradient(
+            Brush.verticalGradient(
                 listOf(
-                    Color.White.copy(alpha = 0.82f),
-                    ZhiQiTokens.Surface.copy(alpha = 0.74f)
+                    Color.White.copy(alpha = 0.92f),
+                    ZhiQiTokens.Surface.copy(alpha = 0.84f),
+                    Color(0xFFFFF6EE).copy(alpha = 0.8f)
                 )
             )
         )
-        .border(1.dp, Color.White.copy(alpha = 0.74f), shape)
+        .border(1.dp, Color.White.copy(alpha = 0.72f), shape)
+}
+
+fun Modifier.glassPanel(
+    shape: Shape = RoundedCornerShape(AppRadii.medium),
+    backgroundAlpha: Float = 0.78f,
+    borderAlpha: Float = 0.82f
+): Modifier {
+    return this
+        .clip(shape)
+        .background(
+            Brush.verticalGradient(
+                listOf(
+                    Color.White.copy(alpha = (backgroundAlpha + 0.08f).coerceAtMost(0.98f)),
+                    ZhiQiTokens.Surface.copy(alpha = backgroundAlpha)
+                )
+            ),
+            shape
+        )
+        .border(1.dp, Color.White.copy(alpha = borderAlpha), shape)
 }
 
 @Composable

@@ -2,8 +2,6 @@ package com.zhiqi.app.security
 
 import android.content.Context
 import android.util.Base64
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.security.SecureRandom
@@ -11,19 +9,11 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
 class PinManager(context: Context) {
+    private val appContext = context.applicationContext
     private val prefs by lazy {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        EncryptedSharedPreferences.create(
-            context,
-            PREFS_NAME,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+        SecurePreferencesFactory.create(appContext, PREFS_NAME)
     }
-    private val _pinConfigured = MutableStateFlow(prefs.contains(KEY_PIN_HASH))
+    private val _pinConfigured = MutableStateFlow(hasStoredPin())
     private val _passwordEnabled = MutableStateFlow(readPasswordEnabled())
     val pinConfigured = _pinConfigured.asStateFlow()
     val passwordEnabled = _passwordEnabled.asStateFlow()
@@ -33,11 +23,13 @@ class PinManager(context: Context) {
     fun isPasswordEnabled(): Boolean = _passwordEnabled.value
 
     fun setPasswordEnabled(enabled: Boolean) {
-        val editor = prefs.edit().putBoolean(KEY_PASSWORD_ENABLED, enabled)
-        if (!enabled) {
-            editor.putInt(KEY_FAIL_COUNT, 0).putBoolean(KEY_HIDDEN, false)
+        prefs.editAndApply {
+            putBoolean(KEY_PASSWORD_ENABLED, enabled)
+            if (!enabled) {
+                putInt(KEY_FAIL_COUNT, 0)
+                putBoolean(KEY_HIDDEN, false)
+            }
         }
-        editor.apply()
         _passwordEnabled.value = enabled
     }
 
@@ -45,13 +37,13 @@ class PinManager(context: Context) {
         val salt = ByteArray(16)
         SecureRandom().nextBytes(salt)
         val hash = hashPin(pin, salt)
-        prefs.edit()
-            .putString(KEY_PIN_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
-            .putString(KEY_PIN_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
-            .putInt(KEY_FAIL_COUNT, 0)
-            .putBoolean(KEY_HIDDEN, false)
-            .apply()
-        _pinConfigured.value = true
+        prefs.editAndApply {
+            putString(KEY_PIN_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
+            putString(KEY_PIN_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
+            putInt(KEY_FAIL_COUNT, 0)
+            putBoolean(KEY_HIDDEN, false)
+        }
+        _pinConfigured.value = hasStoredPin()
     }
 
     fun verifyPin(pin: String): Boolean {
@@ -63,14 +55,18 @@ class PinManager(context: Context) {
         val ok = expected.contentEquals(actual)
 
         if (ok) {
-            prefs.edit().putInt(KEY_FAIL_COUNT, 0).putBoolean(KEY_HIDDEN, false).apply()
+            prefs.editAndApply {
+                putInt(KEY_FAIL_COUNT, 0)
+                putBoolean(KEY_HIDDEN, false)
+            }
         } else {
             val fails = prefs.getInt(KEY_FAIL_COUNT, 0) + 1
-            val editor = prefs.edit().putInt(KEY_FAIL_COUNT, fails)
-            if (fails >= 5) {
-                editor.putBoolean(KEY_HIDDEN, true)
+            prefs.editAndApply {
+                putInt(KEY_FAIL_COUNT, fails)
+                if (fails >= MAX_FAILED_ATTEMPTS) {
+                    putBoolean(KEY_HIDDEN, true)
+                }
             }
-            editor.apply()
         }
         return ok
     }
@@ -80,7 +76,7 @@ class PinManager(context: Context) {
     fun isBiometricEnabled(): Boolean = prefs.getBoolean(KEY_BIOMETRIC, false)
 
     fun setBiometricEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_BIOMETRIC, enabled).apply()
+        prefs.editAndApply { putBoolean(KEY_BIOMETRIC, enabled) }
     }
 
     fun exportSnapshot(): PinSnapshot {
@@ -99,30 +95,34 @@ class PinManager(context: Context) {
             clearAll()
             return
         }
-        prefs.edit()
-            .putString(KEY_PIN_HASH, snapshot.hashBase64)
-            .putString(KEY_PIN_SALT, snapshot.saltBase64)
-            .putInt(KEY_FAIL_COUNT, snapshot.failCount.coerceAtLeast(0))
-            .putBoolean(KEY_HIDDEN, snapshot.hidden)
-            .putBoolean(KEY_BIOMETRIC, snapshot.biometricEnabled)
-            .putBoolean(KEY_PASSWORD_ENABLED, snapshot.passwordEnabled)
-            .apply()
-        _pinConfigured.value = true
+        prefs.editAndApply {
+            putString(KEY_PIN_HASH, snapshot.hashBase64)
+            putString(KEY_PIN_SALT, snapshot.saltBase64)
+            putInt(KEY_FAIL_COUNT, snapshot.failCount.coerceAtLeast(0))
+            putBoolean(KEY_HIDDEN, snapshot.hidden)
+            putBoolean(KEY_BIOMETRIC, snapshot.biometricEnabled)
+            putBoolean(KEY_PASSWORD_ENABLED, snapshot.passwordEnabled)
+        }
+        _pinConfigured.value = hasStoredPin()
         _passwordEnabled.value = snapshot.passwordEnabled
     }
 
     fun clearAll() {
-        prefs.edit().clear().apply()
+        prefs.editAndApply { clear() }
         _pinConfigured.value = false
         _passwordEnabled.value = false
     }
 
     private fun readPasswordEnabled(): Boolean {
-        if (!prefs.contains(KEY_PASSWORD_ENABLED) && _pinConfigured.value) {
-            prefs.edit().putBoolean(KEY_PASSWORD_ENABLED, true).apply()
+        if (!prefs.contains(KEY_PASSWORD_ENABLED) && hasStoredPin()) {
+            prefs.editAndApply { putBoolean(KEY_PASSWORD_ENABLED, true) }
             return true
         }
         return prefs.getBoolean(KEY_PASSWORD_ENABLED, false)
+    }
+
+    private fun hasStoredPin(): Boolean {
+        return prefs.contains(KEY_PIN_HASH) && prefs.contains(KEY_PIN_SALT)
     }
 
     private fun hashPin(pin: String, salt: ByteArray): ByteArray {
@@ -139,6 +139,7 @@ class PinManager(context: Context) {
         private const val KEY_HIDDEN = "records_hidden"
         private const val KEY_BIOMETRIC = "biometric_enabled"
         private const val KEY_PASSWORD_ENABLED = "password_enabled"
+        private const val MAX_FAILED_ATTEMPTS = 5
     }
 }
 

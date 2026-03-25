@@ -2,18 +2,18 @@ package com.zhiqi.app.data
 
 import kotlinx.coroutines.flow.Flow
 
-class RecordRepository(private val dao: RecordDao) {
-    fun records(): Flow<List<RecordEntity>> = dao.getAllFlow()
+class RecordRepository(private val recordDao: RecordDao) {
+    fun records(): Flow<List<RecordEntity>> = recordDao.observeAll()
 
-    suspend fun getAll(): List<RecordEntity> = dao.getAll()
+    suspend fun getAll(): List<RecordEntity> = recordDao.snapshotAll()
 
-    suspend fun add(record: RecordEntity): Long = dao.insert(record)
+    suspend fun add(record: RecordEntity): Long = recordDao.insert(record)
 
-    suspend fun update(record: RecordEntity) = dao.update(record)
+    suspend fun update(record: RecordEntity) = recordDao.update(record)
 
-    suspend fun delete(record: RecordEntity) = dao.delete(record)
+    suspend fun delete(record: RecordEntity) = recordDao.delete(record)
 
-    suspend fun getById(id: Long): RecordEntity? = dao.getById(id)
+    suspend fun getById(id: Long): RecordEntity? = recordDao.findById(id)
 
-    suspend fun clearAll() = dao.clearAll()
+    suspend fun clearAll() = recordDao.clearAll()
 }
